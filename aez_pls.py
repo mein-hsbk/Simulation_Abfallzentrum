@@ -531,10 +531,24 @@ def _(GRUNDRISS_URL, MVA_URL, S_PRESETS, S_STAGES, bio_t, heizwert, ks_t, mo,
     E_bio_d = V_biogas * 6.0 * 0.40 / 1000                  # MWh/d el (η_el BHKW ~40 %)
     m_kompost = m_bio * 0.40
 
-    # Deponie-Sickerwasser (offene Einbaufläche ~ 12 ha, Sickerquote ~0,3)
-    flaeche_offen_ha = 12
-    sicker_quote = 0.30
-    V_sicker = regen * flaeche_offen_ha * 1e4 / 1000 * sicker_quote   # m³/d
+    # Deponie-Sickerwasser: Basisdränage → Sickerwasserschacht SWS-1 → Druckleitung DN 300
+    # → Sammelbecken SB-1 (Pumpwerk SWP-01) → Sickerwasserbehandlung → KA Schwierbach.
+    # Fließgeschwindigkeit in der Druckleitung zwischen Trockenwetter (0,60 m/s) und
+    # Starkregen (1,80 m/s), getrieben vom Niederschlag im Kontrollzentrum.
+    import math as _m_sw
+    sw_dn = 0.300                                           # m, Innendurchmesser
+    sw_A = _m_sw.pi * (sw_dn / 2) ** 2                      # m²
+    sw_v_tw, sw_v_sr = 0.60, 1.80                           # m/s
+    sw_frac = max(0.0, min(1.0, (regen - 2.0) / 23.0))      # 2 mm/d = TW, ≥ 25 mm/d = Starkregen
+    sw_v = sw_v_tw + (sw_v_sr - sw_v_tw) * sw_frac
+    sw_Q_Ls = sw_A * sw_v * 1000                            # L/s
+    V_sicker = sw_Q_Ls * 86.4                               # m³/d
+    # Sammelbecken SB-1 (Bestand 1987): 8,00 × 5,00 × 5,00 m
+    sw_L, sw_B, sw_T = 8.0, 5.0, 5.0
+    sw_V = sw_L * sw_B * sw_T
+    sw_fuell = min(98.0, 25.0 + sw_frac * 70.0)             # %
+    sw_h = sw_fuell / 100 * sw_T
+    sw_Vist = sw_fuell / 100 * sw_V
 
     # Inputsumme / Verwertungs- bzw. Beseitigungsquote (grob)
     m_input = m_muell + m_sortier + m_bio + m_ks
@@ -961,16 +975,239 @@ def _(GRUNDRISS_URL, MVA_URL, S_PRESETS, S_STAGES, bio_t, heizwert, ks_t, mo,
          "Biogas & BHKW (CH₄-Gehalt, Stromertrag)",
          "Kompostierung (Rotte, Reifegrad)"])
 
-    deponie = geruest(
-        "⛰️ Deponie (DK II)",
-        "Schwerpunkt Sickerwasser – die direkte fachliche Brücke zur Abwasserbehandlung. "
-        "Authentizitätshinweis: Eine reale DK-II-Deponie nimmt bewusst nur reaktionsarme, "
-        "nicht gasbildende Stoffe auf; für die Sickerwasser-Lernsituationen empfiehlt sich daher ein "
-        "bewusst als „klassisch“ benanntes Deponie-Modell.",
+    # ---------- Deponie: Sickerwasserfassung und Sammelbecken SB-1 ----------
+    def _sw_farbe(pct):
+        if pct > 85: return "#e17055"
+        if pct > 65: return "#fdcb6e"
+        return "#00b894"
+
+    if sw_frac < 0.08:
+        sw_status, sw_status_farbe = "Grundlast (1 Pumpe intermittierend)", "#00b894"
+    elif sw_frac < 0.75:
+        sw_status, sw_status_farbe = "Regenbetrieb (P1 Dauerlauf)", "#fdcb6e"
+    else:
+        sw_status, sw_status_farbe = "STARKREGEN – P1+P2 Volllast", "#e17055"
+
+    if sw_fuell > 90:
+        sw_alarm = '<div style="background:rgba(225,112,85,0.2);border:1px solid #e17055;border-radius:4px;padding:6px 10px;margin:4px 0;font-size:0.85em"><strong>🚨 KRITISCH:</strong> Beckenfüllstand &gt; 90 % – Überlaufgefahr!</div>'
+    elif sw_fuell > 70:
+        sw_alarm = '<div style="background:rgba(253,203,110,0.15);border:1px solid #fdcb6e;border-radius:4px;padding:6px 10px;margin:4px 0;font-size:0.85em"><strong>⚠️ WARNUNG:</strong> Erhöhter Füllstand – Kapazitätsreserve prüfen</div>'
+    else:
+        sw_alarm = ""
+
+    # Füllstand Sickerwasserschacht SWS-1 (Pumpensumpf am Tiefpunkt der Basisdränage)
+    sw_sws_fuell = min(95.0, 30.0 + sw_frac * 45.0)
+
+    sw_schema = f"""<svg viewBox="0 0 900 360" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;background:#0a1428;border-radius:6px">
+      <defs>
+        <marker id="ah-sw" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+          <polygon points="0 0,9 3.5,0 7" fill="#74b9ff"/>
+        </marker>
+        <pattern id="grid-sw" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#16213e" stroke-width="0.5"/>
+        </pattern>
+      </defs>
+      <rect width="900" height="360" fill="url(#grid-sw)"/>
+      <text x="20" y="28" fill="#74b9ff" font-size="14" font-weight="bold" font-family="monospace">Deponie Schwierbach – Sickerwasserfassung (Live)</text>
+      <text x="20" y="46" fill="#b2bec3" font-size="10" font-family="monospace">Niederschlag aktuell: {regen:.1f} mm/d</text>
+
+      <!-- Deponiekörper mit Einbauabschnitten -->
+      <path d="M 30,250 L 90,120 L 300,110 L 360,250 Z" fill="#2d3436" stroke="#b2bec3" stroke-width="1.5"/>
+      <line x1="160" y1="116" x2="150" y2="250" stroke="#636e72" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="235" y1="113" x2="245" y2="250" stroke="#636e72" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="100" y="190" fill="#dfe6e9" text-anchor="middle" font-size="9" font-family="monospace">BA I</text>
+      <text x="197" y="190" fill="#dfe6e9" text-anchor="middle" font-size="9" font-family="monospace">BA II</text>
+      <text x="292" y="190" fill="#dfe6e9" text-anchor="middle" font-size="9" font-family="monospace">BA III</text>
+      <text x="195" y="100" fill="#b2bec3" text-anchor="middle" font-size="9" font-family="monospace">Deponiekörper · 41 ha</text>
+      <!-- Basisabdichtung + Basisdränage -->
+      <line x1="30" y1="254" x2="360" y2="254" stroke="#636e72" stroke-width="3"/>
+      <line x1="40" y1="262" x2="370" y2="270" stroke="#74b9ff" stroke-width="1.5" stroke-dasharray="6,3"/>
+      <text x="200" y="285" fill="#74b9ff" text-anchor="middle" font-size="8" font-family="monospace">Basisdränage (Freispiegel)</text>
+
+      <!-- Sickerwasserschacht SWS-1 -->
+      <rect x="370" y="225" width="110" height="80" rx="6" fill="#16213e" stroke="#0984e3" stroke-width="1.5"/>
+      <text x="425" y="244" fill="#74b9ff" text-anchor="middle" font-size="10" font-weight="bold" font-family="monospace">SWS-1</text>
+      <text x="425" y="257" fill="#b2bec3" text-anchor="middle" font-size="8" font-family="monospace">Sickerw.-Schacht</text>
+      <rect x="380" y="266" width="90" height="10" fill="#2d3436" stroke="#0f3460" stroke-width="1"/>
+      <rect x="380" y="266" width="{0.9 * sw_sws_fuell:.1f}" height="10" fill="{_sw_farbe(sw_sws_fuell)}"/>
+      <text x="425" y="294" fill="#dfe6e9" text-anchor="middle" font-size="9" font-family="monospace">{sw_sws_fuell:.0f} %</text>
+
+      <!-- Druckleitung DN 300 → Sammelbecken -->
+      <path d="M 480,250 L 520,250 L 520,150 L 560,150" stroke="#74b9ff" stroke-width="2" fill="none" stroke-dasharray="4,3" marker-end="url(#ah-sw)"/>
+      <text x="528" y="205" fill="#74b9ff" font-size="9" font-family="monospace">DN 300</text>
+      <text x="528" y="217" fill="#74b9ff" font-size="9" font-family="monospace">Druckltg.</text>
+
+      <!-- Sammelbecken SB-1 / Pumpwerk SWP-01 -->
+      <rect x="560" y="95" width="180" height="105" rx="6" fill="#16213e" stroke="#0984e3" stroke-width="1.5"/>
+      <text x="650" y="116" fill="#74b9ff" text-anchor="middle" font-size="11" font-weight="bold" font-family="monospace">SAMMELBECKEN SB-1</text>
+      <text x="650" y="131" fill="#b2bec3" text-anchor="middle" font-size="9" font-family="monospace">KKS: SWP-01</text>
+      <rect x="575" y="140" width="150" height="14" fill="#2d3436" stroke="#0f3460" stroke-width="1"/>
+      <rect x="575" y="140" width="{1.5 * sw_fuell:.1f}" height="14" fill="{_sw_farbe(sw_fuell)}"/>
+      <text x="650" y="151" fill="#ffffff" text-anchor="middle" font-size="9" font-weight="bold" font-family="monospace">FÜLLSTAND {sw_fuell:.0f} %</text>
+      <text x="650" y="172" fill="#dfe6e9" text-anchor="middle" font-size="9" font-family="monospace">Q_zu = {sw_Q_Ls:.0f} L/s</text>
+      <text x="650" y="188" fill="{sw_status_farbe}" text-anchor="middle" font-size="9" font-family="monospace">{sw_status.split(" (")[0]}</text>
+
+      <!-- SB-1 → Sickerwasserbehandlung → KA -->
+      <line x1="740" y1="148" x2="785" y2="148" stroke="#3a6090" stroke-width="1.5" marker-end="url(#ah-sw)"/>
+      <rect x="785" y="115" width="100" height="66" rx="6" fill="#16213e" stroke="#00b894" stroke-width="1.5"/>
+      <text x="835" y="138" fill="#00b894" text-anchor="middle" font-size="10" font-weight="bold" font-family="monospace">SWBA</text>
+      <text x="835" y="153" fill="#b2bec3" text-anchor="middle" font-size="8" font-family="monospace">Sickerwasser-</text>
+      <text x="835" y="165" fill="#b2bec3" text-anchor="middle" font-size="8" font-family="monospace">behandlung</text>
+      <line x1="835" y1="181" x2="835" y2="255" stroke="#3a6090" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#ah-sw)"/>
+      <rect x="770" y="255" width="120" height="50" rx="6" fill="#16213e" stroke="#74b9ff" stroke-width="1.5"/>
+      <text x="830" y="276" fill="#74b9ff" text-anchor="middle" font-size="10" font-weight="bold" font-family="monospace">KA SCHWIERBACH</text>
+      <text x="830" y="292" fill="#b2bec3" text-anchor="middle" font-size="8" font-family="monospace">Indirekteinleitung</text>
+
+      <!-- Legende -->
+      <rect x="20" y="318" width="250" height="30" rx="3" fill="#16213e" stroke="#0f3460" stroke-width="1"/>
+      <text x="30" y="337" fill="#b2bec3" font-size="8" font-family="monospace">Füllstand: grün &lt; 65 %, gelb &lt; 85 %, rot &gt; 85 %</text>
+    </svg>"""
+
+    _tdl = 'style="padding:4px 14px 4px 0;color:#b2bec3;white-space:nowrap"'
+    _tdv = 'style="padding:4px 0 4px 14px;color:#74b9ff;font-weight:bold;text-align:right;white-space:nowrap"'
+    sw_live_html = f"""<div style="background:#16213e;border:1px solid #0f3460;border-radius:6px;padding:12px;margin-bottom:10px;color:#dfe6e9">
+      <h3 style="margin:0 0 8px 0;color:#74b9ff;font-size:1em;border-bottom:1px solid #0f3460;padding-bottom:6px">📡 Live-Werte Sammelbecken SB-1 (Pumpwerk SWP-01)</h3>
+      {sw_alarm}
+      <table style="border-collapse:collapse;font-size:0.9em">
+        <tr><td {_tdl}>Füllstand Sammelbecken</td><td {_tdv}>{sw_fuell:.0f} % ({sw_h:.2f} m / {sw_T:.1f} m)</td></tr>
+        <tr><td {_tdl}>Füllvolumen aktuell</td><td {_tdv}>{sw_Vist:.0f} m³ / {sw_V:.0f} m³</td></tr>
+        <tr><td {_tdl}>Zulauf (Druckrohr DN 300)</td><td {_tdv}>{sw_Q_Ls:.1f} L/s</td></tr>
+        <tr><td {_tdl}>Fließgeschw. aktuell</td><td {_tdv}>{sw_v:.2f} m/s</td></tr>
+        <tr><td {_tdl}>Pumpenstatus</td><td style="padding:4px 0 4px 14px;color:{sw_status_farbe};font-weight:bold;text-align:right;white-space:nowrap">{sw_status}</td></tr>
+        <tr><td {_tdl}>Betriebsstunden P1</td><td {_tdv}>31.940 h</td></tr>
+        <tr><td {_tdl}>Betriebsstunden P2</td><td {_tdv}>4.215 h</td></tr>
+      </table>
+      <div style="height:16px;border-radius:3px;background:#2d3436;overflow:hidden;margin:8px 0 4px"><div style="height:100%;width:{sw_fuell:.0f}%;background:{_sw_farbe(sw_fuell)}"></div></div>
+      <p style="font-size:0.78em;color:#b2bec3;margin:6px 0 0 0">
+        Fernwirk-Status: OK · letzter Telegrammempfang vor 2 s · Verbindung LWL
+      </p>
+    </div>"""
+
+    def _dbz(i, k, v):
+        bg = ' style="background:#f5f0d8"' if i % 2 else ""
+        return (f'<tr{bg}><td style="padding:4px 12px;color:#5a4820;width:45%">{k}</td>'
+                f'<td style="padding:4px 12px;font-weight:bold;color:#1a1a2e">{v}</td></tr>')
+    _db_rows = [
+        ("Anlagenkennzeichen (KKS)", "SWP-01"),
+        ("Baujahr", "1987"),
+        ("Bauart", "Stahlbeton, rechteckig, unterirdisch"),
+        ("Becken – Länge (innen)", "L = 8,00 m"),
+        ("Becken – Breite (innen)", "B = 5,00 m"),
+        ("Becken – nutzbare Tiefe", "T = 5,00 m"),
+        ("Zulauf", "Druckrohrleitung DN 300 (von SWS-1)"),
+        ("Fließgeschw. Trockenwetter", "v_TW = 0,60 m/s"),
+        ("Fließgeschw. Starkregen", "v_SR = 1,80 m/s"),
+        ("Förderpumpen", "2 × Tauchmotor-KP (1 Betrieb, 1 Reserve)"),
+        ("Weiterleitung nach", "Sickerwasserbehandlungsanlage (SWBA)"),
+    ]
+    sw_datenblatt_html = f"""<div style="background:#16213e;border:1px solid #0f3460;border-radius:6px;padding:12px;margin-bottom:10px;color:#dfe6e9;background:#fffef5;color:#1a1a2e;border:2px solid #5a4820">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a1a2e;padding-bottom:6px;margin-bottom:8px">
+        <div>
+          <div style="font-size:0.75em;color:#5a4820;letter-spacing:2px">ABFALL- &amp; ENERGIEZENTRUM SCHWIERBACH – DEPONIEBETRIEB</div>
+          <div style="font-size:1.1em;font-weight:bold;color:#1a1a2e">BAUWERKSDATENBLATT</div>
+        </div>
+        <div style="text-align:right;font-size:0.75em;color:#5a4820">
+          Blatt Nr.: SWP-01/DB-02<br>Stand: 03/2021<br>Archiv: Ordner 12/D
+        </div>
+      </div>
+      <h3 style="color:#1a1a2e;border-color:#5a4820;margin:8px 0">Sickerwasser – Sammelbecken SB-1</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:0.88em;color:#1a1a2e">
+        {"".join(_dbz(i, k, v) for i, (k, v) in enumerate(_db_rows))}
+      </table>
+      <p style="font-size:0.78em;color:#5a4820;margin:10px 0 0 0;font-style:italic;border-top:1px dashed #5a4820;padding-top:6px">
+        Anmerkung: Unterlagen aus dem Bauarchiv. Geometrieangaben aus Bestandsplan 1987
+        (vor Erneuerung Abdeckung 2004). Spätere Umbauten am Sammelbecken selbst nicht dokumentiert.
+      </p>
+    </div>"""
+
+    sw_skizze_svg = """<div style="background:#16213e;border:1px solid #0f3460;border-radius:6px;padding:12px;margin-bottom:10px;color:#dfe6e9;background:#f7f3e8;color:#2c1810;border:2px solid #5a4820">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:0.85em;color:#5a4820;font-weight:bold">📐 Grobe Skizze aus Bauarchiv (Bestand)</div>
+        <div style="font-size:0.7em;color:#5a4820;border:1.5px dashed #8a5020;padding:2px 8px;transform:rotate(-3deg);display:inline-block">ARCHIV · 1987</div>
+      </div>
+      <svg viewBox="0 0 600 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;background:#f7f3e8;border:1px solid #c8b080;border-radius:4px">
+        <defs>
+          <pattern id="karo-sw" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#d4c090" stroke-width="0.4"/>
+          </pattern>
+          <marker id="sk-arrow-sw" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0,8 3,0 6" fill="#a03040"/>
+          </marker>
+        </defs>
+        <rect width="600" height="340" fill="url(#karo-sw)"/>
+        <text x="20" y="30" fill="#2c1810" font-size="15" font-family="Georgia, serif" font-style="italic" font-weight="bold">Sickerwasserbecken SB-1 - Seitenansicht</text>
+        <path d="M 60,80 L 360,82 L 361,79 L 359,81" stroke="#2c1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M 58,230 L 362,231 L 361,228" stroke="#2c1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M 60,80 L 59,230 L 61,229" stroke="#2c1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M 360,82 L 361,231 L 359,230" stroke="#2c1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M 65,155 Q 85,150 105,155 T 145,155 T 185,155 T 225,155 T 265,155 T 305,155 T 345,155 T 358,155" stroke="#6a5a30" stroke-width="1.3" fill="none" opacity="0.6"/>
+        <g stroke="#6a5a30" stroke-width="0.5" opacity="0.35">
+          <line x1="70" y1="170" x2="80" y2="160"/><line x1="110" y1="180" x2="120" y2="170"/>
+          <line x1="150" y1="172" x2="160" y2="162"/><line x1="190" y1="185" x2="200" y2="175"/>
+          <line x1="230" y1="170" x2="240" y2="160"/><line x1="270" y1="185" x2="280" y2="175"/>
+          <line x1="310" y1="172" x2="320" y2="162"/><line x1="95" y1="200" x2="105" y2="190"/>
+          <line x1="175" y1="205" x2="185" y2="195"/><line x1="255" y1="208" x2="265" y2="198"/>
+        </g>
+        <path d="M 10,100 L 60,100" stroke="#2c1810" stroke-width="2.5" fill="none"/>
+        <path d="M 10,120 L 60,120" stroke="#2c1810" stroke-width="2.5" fill="none"/>
+        <text x="15" y="95" fill="#2c1810" font-size="11" font-family="Georgia, serif" font-style="italic">DN 300</text>
+        <path d="M 25,110 L 45,110" stroke="#a03040" stroke-width="1.5" fill="none" marker-end="url(#sk-arrow-sw)"/>
+        <text x="8" y="138" fill="#a03040" font-size="10" font-family="Georgia, serif" font-style="italic">von SWS-1</text>
+        <path d="M 300,230 L 300,260 L 360,260 L 360,230" stroke="#2c1810" stroke-width="1.5" fill="none"/>
+        <circle cx="330" cy="280" r="12" fill="none" stroke="#2c1810" stroke-width="2"/>
+        <text x="330" y="285" fill="#2c1810" font-size="13" font-family="Georgia, serif" text-anchor="middle" font-weight="bold">P</text>
+        <text x="370" y="283" fill="#2c1810" font-size="10" font-family="Georgia, serif" font-style="italic">Pumpe</text>
+        <path d="M 330,268 L 330,240 L 410,240 L 410,60 L 450,60" stroke="#2c1810" stroke-width="1.8" fill="none"/>
+        <text x="420" y="52" fill="#2c1810" font-size="10" font-family="Georgia, serif" font-style="italic">zur Behandlung</text>
+        <line x1="60" y1="255" x2="360" y2="255" stroke="#5a4820" stroke-width="0.8"/>
+        <line x1="60" y1="250" x2="60" y2="260" stroke="#5a4820" stroke-width="0.8"/>
+        <line x1="360" y1="250" x2="360" y2="260" stroke="#5a4820" stroke-width="0.8"/>
+        <text x="210" y="275" fill="#5a4820" font-size="13" font-family="Georgia, serif" font-style="italic" text-anchor="middle">L ≈ 8,00 m</text>
+        <line x1="385" y1="80" x2="385" y2="230" stroke="#5a4820" stroke-width="0.8"/>
+        <line x1="380" y1="80" x2="390" y2="80" stroke="#5a4820" stroke-width="0.8"/>
+        <line x1="380" y1="230" x2="390" y2="230" stroke="#5a4820" stroke-width="0.8"/>
+        <text x="400" y="160" fill="#5a4820" font-size="13" font-family="Georgia, serif" font-style="italic">T ≈ 5,00 m</text>
+        <text x="470" y="95" fill="#2c1810" font-size="11" font-family="Georgia, serif" font-style="italic">Draufsicht:</text>
+        <path d="M 475,105 L 575,106 L 576,166 L 474,165 L 475,105" stroke="#2c1810" stroke-width="1.5" fill="none"/>
+        <line x1="480" y1="170" x2="570" y2="170" stroke="#5a4820" stroke-width="0.6"/>
+        <text x="525" y="183" fill="#5a4820" font-size="10" font-family="Georgia, serif" font-style="italic" text-anchor="middle">L ≈ 8,00 m</text>
+        <line x1="585" y1="110" x2="585" y2="160" stroke="#5a4820" stroke-width="0.6"/>
+        <text x="594" y="135" fill="#5a4820" font-size="10" font-family="Georgia, serif" font-style="italic" text-anchor="middle" transform="rotate(-90 594 135)">B ≈ 5 m</text>
+        <text x="20" y="315" fill="#8a5020" font-size="10" font-family="Georgia, serif" font-style="italic">Handskizze K. Wessendorf, Deponiebetrieb, 22.06.1987 – n. maßstäblich!</text>
+        <circle cx="520" cy="262" r="20" fill="#8a5020" opacity="0.12"/>
+        <circle cx="520" cy="262" r="14" fill="#8a5020" opacity="0.15"/>
+      </svg>
+    </div>"""
+
+    deponie_sickerwasser = mo.Html(f"""<div style="background:#1a1a2e;color:#dfe6e9;padding:12px;border-radius:8px;font-family:Consolas,'Courier New',monospace">
+      <div style="background:#16213e;border:1px solid #0f3460;border-radius:6px;padding:12px;margin-bottom:10px;color:#dfe6e9;overflow-x:auto">
+        <h3 style="margin:0 0 8px 0;color:#74b9ff;font-size:1em;border-bottom:1px solid #0f3460;padding-bottom:6px">💧 Sickerwasserfassung – Übersicht</h3>
+        <p style="font-size:0.85em;color:#b2bec3;margin:0 0 8px 0">
+          Das Sickerwasser der Einbauabschnitte wird über die Basisdränage im Freispiegel zum Sickerwasserschacht
+          SWS-1 geführt und von dort über eine Druckrohrleitung in das Sammelbecken SB-1 gefördert. Das Becken puffert
+          den Zulauf zur Sickerwasserbehandlungsanlage. Zuflüsse und Füllstände folgen dem Niederschlag.
+        </p>
+        {sw_schema}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>{sw_live_html}</div>
+        <div>{sw_datenblatt_html}</div>
+      </div>
+      {sw_skizze_svg}
+    </div>""")
+
+    deponie_weitere = geruest(
+        "⛰️ Deponie – weitere Bereiche",
+        "Ausbau der übrigen Deponiebereiche.",
         ["Einbau (Schlacke, Bauschutt, mineralische Abfälle)",
-         "Sickerwasser (Menge & Beschaffenheit → Behandlung)",
-         "Deponiegas (sofern modelliert)",
+         "Sickerwasserbeschaffenheit & Behandlung",
+         "Deponiegas",
          "Setzung / Nachsorge"])
+
+    deponie = mo.ui.tabs({
+        "💧 Sickerwasser": deponie_sickerwasser,
+        "📋 Weitere Bereiche": deponie_weitere,
+    }, lazy=True)
 
     energie = geruest(
         "🔌 Energie & Klärschlamm",
