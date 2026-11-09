@@ -441,7 +441,7 @@ def _(S_ORDER, S_PRESETS, S_STAGES, mo):
 
 
 @app.cell
-def _(GRUNDRISS_URL, MVA_URL, S_PRESETS, S_STAGES, bio_t, heizwert, ks_t, mo,
+def _(GRUNDRISS_URL, dep_armaturen, MVA_URL, S_PRESETS, S_STAGES, bio_t, heizwert, ks_t, mo,
       muell_t, niederschlag, s_durchsatz, s_entgelt, s_hand, s_markt, s_pos1, s_pos2,
       s_pos3, s_pos4, s_pos5, s_pos6, s_pos7, s_pos8, s_pos9, s_pos10, s_preset,
       s_stunden, sortier_t, sortiermodell):
@@ -1206,6 +1206,7 @@ def _(GRUNDRISS_URL, MVA_URL, S_PRESETS, S_STAGES, bio_t, heizwert, ks_t, mo,
 
     deponie = mo.ui.tabs({
         "💧 Sickerwasser": deponie_sickerwasser,
+        "🛠️ Armaturen": dep_armaturen,
         "📋 Weitere Bereiche": deponie_weitere,
     }, lazy=True)
 
@@ -1258,6 +1259,340 @@ def _(GRUNDRISS_URL, MVA_URL, S_PRESETS, S_STAGES, bio_t, heizwert, ks_t, mo,
 
     mo.output.replace(mo.vstack([mo.Html(hdr), panel, tabs]))
     return
+
+
+@app.cell
+def _(mo):
+    # === DEPONIE: ARMATUREN-UI (LS Schieber beschädigt, Abfall-UT) ===
+    dep_armatur_auswahl = mo.ui.dropdown(
+        options=[
+            "—",
+            "HS-SW-01  Plattenschieber  Druckleitung SWS-1",
+            "HS-SW-02  Plattenschieber  Zulauf Sammelbecken SB-1",
+            "HS-SW-03  Plattenschieber  Ablauf SB-1 → SWBA",
+            "RK-SW-01  Rückschlagklappe  Druckstutzen P1",
+            "RK-SW-02  Rückschlagklappe  Druckstutzen P2",
+            "V-SW-01   Absperrschieber  Druckstutzen P1",
+            "V-SW-02   Absperrschieber  Druckstutzen P2",
+            "V-SW-05   Kugelhahn  Probenahme SB-1",
+        ],
+        value="—",
+        label="Armatur auswählen",
+    )
+    dep_wartung_btn = mo.ui.run_button(label="🔧 Wartung beim Leitstand anmelden", kind="warn")
+    return dep_armatur_auswahl, dep_wartung_btn
+
+
+@app.cell
+def _(dep_armatur_auswahl, dep_wartung_btn, mo):
+    # === DEPONIE: ARMATURENVERZEICHNIS SICKERWASSER + WARTUNGSAUFTRAG ===
+    import datetime as _dt
+
+    DEP_ARMATUREN = {
+        "HS-SW-01": dict(
+            kks="HS-SW-01", kurz="Plattenschieber", einbau="Druckleitung, Ausgang SWS-1",
+            anlagenteil="Sickerwasserschacht SWS-1", hersteller="KSB", modell="HERA-BD",
+            dn=300, pn=6, werkstoff="5.3106 / EPDM", baujahr=2019, serien="238815",
+            medium="Deponiesickerwasser", t_max=40, p_max=4, antrieb="Handrad",
+            stellung="AUF", bh=58120, wartung="03/2023", zustand="ok", meldung=""),
+        "HS-SW-02": dict(
+            kks="HS-SW-02", kurz="Plattenschieber", einbau="Zulauf Sammelbecken SB-1",
+            anlagenteil="Sammelbecken SB-1", hersteller="KSB", modell="HERA-BD",
+            dn=300, pn=6, werkstoff="5.3106 / EPDM", baujahr=2019, serien="238817",
+            medium="Deponiesickerwasser", t_max=40, p_max=4, antrieb="Handrad",
+            stellung="AUF", bh=58120, wartung="03/2023", zustand="defekt",
+            meldung="Mechanischer Schaden – Bügel verformt (Anfahrschaden Radlader), Handrad schwergängig. Seit 07:48 Uhr nicht mehr bedienbar."),
+        "HS-SW-03": dict(
+            kks="HS-SW-03", kurz="Plattenschieber", einbau="Ablauf SB-1 → Sickerwasserbehandlung",
+            anlagenteil="Sammelbecken SB-1", hersteller="KSB", modell="HERA-BD",
+            dn=200, pn=10, werkstoff="5.3106 / EPDM", baujahr=2019, serien="238820",
+            medium="Deponiesickerwasser", t_max=40, p_max=4, antrieb="Handrad",
+            stellung="AUF", bh=58120, wartung="03/2023", zustand="ok", meldung=""),
+        "RK-SW-01": dict(
+            kks="RK-SW-01", kurz="Rückschlagklappe", einbau="Druckstutzen Pumpe P1 (SWS-1)",
+            anlagenteil="Sickerwasserschacht SWS-1", hersteller="ERHARD", modell="ROCO wave",
+            dn=150, pn=10, werkstoff="EN-GJS-500 / EPDM", baujahr=2012, serien="E-418002",
+            medium="Deponiesickerwasser", t_max=40, p_max=10, antrieb="selbsttätig",
+            stellung="betriebsbedingt", bh=31940, wartung="05/2024", zustand="ok", meldung=""),
+        "RK-SW-02": dict(
+            kks="RK-SW-02", kurz="Rückschlagklappe", einbau="Druckstutzen Pumpe P2 (SWS-1)",
+            anlagenteil="Sickerwasserschacht SWS-1", hersteller="ERHARD", modell="ROCO wave",
+            dn=150, pn=10, werkstoff="EN-GJS-500 / EPDM", baujahr=2012, serien="E-418003",
+            medium="Deponiesickerwasser", t_max=40, p_max=10, antrieb="selbsttätig",
+            stellung="betriebsbedingt", bh=4215, wartung="05/2024", zustand="ok", meldung=""),
+        "V-SW-01": dict(
+            kks="V-SW-01", kurz="Absperrschieber", einbau="Druckstutzen Pumpe P1 (SWS-1)",
+            anlagenteil="Sickerwasserschacht SWS-1", hersteller="AVK", modell="Serie 06",
+            dn=150, pn=10, werkstoff="EN-GJS-500 / EPDM", baujahr=2012, serien="AVK-118734",
+            medium="Deponiesickerwasser", t_max=40, p_max=10, antrieb="Handrad",
+            stellung="AUF", bh=58120, wartung="05/2024", zustand="ok", meldung=""),
+        "V-SW-02": dict(
+            kks="V-SW-02", kurz="Absperrschieber", einbau="Druckstutzen Pumpe P2 (SWS-1)",
+            anlagenteil="Sickerwasserschacht SWS-1", hersteller="AVK", modell="Serie 06",
+            dn=150, pn=10, werkstoff="EN-GJS-500 / EPDM", baujahr=2012, serien="AVK-118735",
+            medium="Deponiesickerwasser", t_max=40, p_max=10, antrieb="Handrad",
+            stellung="AUF", bh=58120, wartung="05/2024", zustand="ok", meldung=""),
+        "V-SW-05": dict(
+            kks="V-SW-05", kurz="Kugelhahn", einbau="Probenahme Sammelbecken SB-1",
+            anlagenteil="Sammelbecken SB-1", hersteller="ARI Armaturen", modell="ZETRIX",
+            dn=25, pn=16, werkstoff="1.4408 / PTFE", baujahr=2016, serien="ARI-55120",
+            medium="Deponiesickerwasser", t_max=40, p_max=4, antrieb="Handhebel",
+            stellung="ZU", bh=0, wartung="11/2025", zustand="ok", meldung=""),
+    }
+
+    def _z_farbe(z):
+        return {"ok": "#00b894", "wartung": "#fdcb6e",
+                "sanierung": "#e17055", "defekt": "#e94560"}.get(z, "#74b9ff")
+
+    def _z_icon(z):
+        return {"ok": "🟢", "wartung": "🟡", "sanierung": "🟠", "defekt": "🔴"}.get(z, "⚪")
+
+    def _z_text(z):
+        return {"ok": "in Betrieb", "wartung": "Wartung fällig",
+                "sanierung": "Sanierung empfohlen", "defekt": "STÖRUNG"}.get(z, z)
+
+    def _typenschild_svg(a):
+        """Erzeugt ein KSB-ähnliches Typenschild als SVG, Daten variabel."""
+        marke = a["hersteller"]
+        # Farbschema dezent nach Hersteller
+        mfarbe = {
+            "KSB": "#1a4a90", "VAG": "#2a6030", "ERHARD": "#603020",
+            "AVK": "#8a4818", "ARI Armaturen": "#50208a",
+            "Adams Armaturen": "#1a5a80",
+        }.get(marke, "#1a4080")
+        return f'''
+<svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:480px;height:auto">
+  <!-- Blechplatte -->
+  <defs>
+<linearGradient id="mtl-{a["kks"]}" x1="0%" y1="0%" x2="0%" y2="100%">
+  <stop offset="0%" style="stop-color:#e8e8ec"/>
+  <stop offset="50%" style="stop-color:#c8c8cc"/>
+  <stop offset="100%" style="stop-color:#a8a8ac"/>
+</linearGradient>
+  </defs>
+  <rect x="4" y="4" width="472" height="272" rx="6" fill="url(#mtl-{a["kks"]})" stroke="#707080" stroke-width="1"/>
+  <!-- Blaue Kopfzeile -->
+  <rect x="4" y="4" width="472" height="46" rx="6" fill="{mfarbe}"/>
+  <text x="240" y="34" text-anchor="middle" fill="#ffffff" font-family="Arial,sans-serif" font-size="22" font-weight="bold" letter-spacing="2">{a["kurz"].upper()}</text>
+
+  <!-- Typ + Hersteller-Logo-Bereich -->
+  <text x="30" y="80" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="14" font-weight="bold">Typ:</text>
+  <text x="75" y="80" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="15" font-weight="bold">{a["modell"]}</text>
+  <line x1="75" y1="84" x2="280" y2="84" stroke="#303040" stroke-width="0.6"/>
+  <!-- Hersteller-„Logo" -->
+  <rect x="340" y="60" width="115" height="32" rx="3" fill="#ffffff" stroke="{mfarbe}" stroke-width="1.5"/>
+  <text x="397" y="82" text-anchor="middle" fill="{mfarbe}" font-family="Arial,sans-serif" font-size="15" font-weight="bold">{marke}</text>
+  <line x1="20" y1="100" x2="460" y2="100" stroke="{mfarbe}" stroke-width="1.2"/>
+
+  <!-- Linke Spalte -->
+  <text x="30" y="125" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">Einbauort:</text>
+  <text x="100" y="125" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11">{a["einbau"][:38]}</text>
+  <line x1="100" y1="128" x2="240" y2="128" stroke="#303040" stroke-width="0.4"/>
+
+  <text x="30" y="152" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">Nennweite:</text>
+  <text x="105" y="152" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">DN {a["dn"]}</text>
+  <line x1="105" y1="155" x2="240" y2="155" stroke="#303040" stroke-width="0.4"/>
+
+  <text x="30" y="175" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">Druckstufe:</text>
+  <text x="105" y="175" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">PN {a["pn"]}</text>
+  <line x1="105" y1="178" x2="240" y2="178" stroke="#303040" stroke-width="0.4"/>
+
+  <!-- Rechte Spalte -->
+  <text x="260" y="125" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">Werkstoff:</text>
+  <text x="327" y="125" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">{a["werkstoff"]}</text>
+  <line x1="327" y1="128" x2="460" y2="128" stroke="#303040" stroke-width="0.4"/>
+
+  <text x="260" y="152" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">Baujahr:</text>
+  <text x="318" y="152" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">{a["baujahr"]}</text>
+  <line x1="318" y1="155" x2="460" y2="155" stroke="#303040" stroke-width="0.4"/>
+
+  <text x="260" y="175" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">Serien-Nr.:</text>
+  <text x="327" y="175" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">{a["serien"]}</text>
+  <line x1="327" y1="178" x2="460" y2="178" stroke="#303040" stroke-width="0.4"/>
+
+  <!-- Untere Zeile -->
+  <line x1="20" y1="200" x2="460" y2="200" stroke="{mfarbe}" stroke-width="1.2"/>
+  <text x="30" y="223" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">Medium: {a["medium"]}</text>
+  <line x1="163" y1="210" x2="163" y2="235" stroke="#606060" stroke-width="0.4"/>
+  <text x="175" y="223" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">max. Temp.: {a["t_max"]} °C</text>
+  <line x1="310" y1="210" x2="310" y2="235" stroke="#606060" stroke-width="0.4"/>
+  <text x="322" y="223" fill="#1a1a1a" font-family="Arial,sans-serif" font-size="11" font-weight="bold">max. Druck: {a["p_max"]} bar</text>
+
+  <!-- Fußzeile -->
+  <rect x="4" y="245" width="472" height="31" fill="{mfarbe}" rx="0"/>
+  <text x="240" y="266" text-anchor="middle" fill="#ffffff" font-family="Arial,sans-serif" font-size="12" font-weight="bold" letter-spacing="1">Made in Germany</text>
+
+  <!-- Bohrungen (Ecken) -->
+  <circle cx="24" cy="24" r="4.5" fill="#707080" stroke="#303040" stroke-width="0.6"/>
+  <circle cx="456" cy="24" r="4.5" fill="#707080" stroke="#303040" stroke-width="0.6"/>
+  <circle cx="24" cy="256" r="4.5" fill="#707080" stroke="#303040" stroke-width="0.6"/>
+  <circle cx="456" cy="256" r="4.5" fill="#707080" stroke="#303040" stroke-width="0.6"/>
+</svg>'''
+
+    # --- Armaturenliste ---
+    _zeilen = ""
+    for _kks, _a in DEP_ARMATUREN.items():
+        _zeilen += (f'<tr><td style="color:#74b9ff;font-weight:bold">{_kks}</td><td>{_a["kurz"]}</td>'
+                    f'<td style="color:#b2bec3;font-size:0.9em">{_a["einbau"]}</td><td style="text-align:center">DN {_a["dn"]}</td>'
+                    f'<td style="text-align:center">{_a["stellung"]}</td><td style="text-align:right">{_a["bh"]:,} h</td>'
+                    f'<td style="color:{_z_farbe(_a["zustand"])};font-weight:bold">{_z_icon(_a["zustand"])} {_z_text(_a["zustand"])}</td></tr>')
+    _n_def = sum(1 for _a in DEP_ARMATUREN.values() if _a["zustand"] == "defekt")
+    _liste = f'''<div class="pls"><div class="pls-c">
+      <h3>🛠️ Armaturenverzeichnis Sickerwasser</h3>
+      <p style="font-size:0.85em;color:#b2bec3;margin:0 0 8px">Armaturen der Sickerwasserfassung (SWS-1 → Druckleitung DN 300 → Sammelbecken SB-1 → SWBA).
+      Zustand, Stellung und Betriebsstunden aus dem Leitstand. Aktuelle Störungen: <strong style="color:{"#e94560" if _n_def else "#00b894"}">{_n_def}</strong></p>
+      <div style="overflow-x:auto"><table class="pls-overview-tbl" style="width:100%">
+        <tr><th>KKS</th><th>Typ</th><th>Einbauort</th><th>Nennweite</th><th>Stellung</th><th>Betriebsstd.</th><th>Status</th></tr>
+        {_zeilen}
+      </table></div>
+    </div></div>'''
+
+    # --- Details auffälliger Armaturen ---
+    _details = ""
+    for _kks, _a in DEP_ARMATUREN.items():
+        if _a["zustand"] == "ok":
+            continue
+        _zf = _z_farbe(_a["zustand"])
+        _details += f'''
+<details style="margin:6px 0;background:#16213e;border:1px solid {_zf};border-radius:6px;padding:8px 14px">
+  <summary style="cursor:pointer;font-weight:bold;color:{_zf};font-family:monospace;font-size:0.95em">
+    {_z_icon(_a["zustand"])} {_kks} – {_a["kurz"]} · {_a["einbau"]} <span style="color:#b2bec3;font-weight:normal">&nbsp;▸&nbsp;Details anzeigen</span>
+  </summary>
+  <div style="margin-top:10px">
+    <div style="background:rgba(233,69,96,0.12);border-left:3px solid {_zf};padding:6px 10px;margin:6px 0 10px;font-size:0.85em">
+      <strong style="color:{_zf}">⚡ Störmeldung:</strong> <span style="color:#dfe6e9">{_a["meldung"]}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+      <div>
+        <h4 style="color:#74b9ff;margin:0 0 6px;font-size:0.85em;border-bottom:1px solid #0f3460;padding-bottom:3px">📋 Typenschild (Original)</h4>
+        {_typenschild_svg(_a)}
+      </div>
+      <div>
+        <h4 style="color:#74b9ff;margin:0 0 6px;font-size:0.85em;border-bottom:1px solid #0f3460;padding-bottom:3px">📊 Betriebsdaten</h4>
+        <table style="font-size:0.85em;width:100%">
+          <tr><td>Anlagenteil</td><td class="c-v" style="text-align:right">{_a["anlagenteil"]}</td></tr>
+          <tr><td>Antriebsart</td><td class="c-v" style="text-align:right">{_a["antrieb"]}</td></tr>
+          <tr><td>Aktuelle Stellung</td><td class="c-v" style="text-align:right">{_a["stellung"]}</td></tr>
+          <tr><td>Betriebsstunden</td><td class="c-v" style="text-align:right">{_a["bh"]:,} h</td></tr>
+          <tr><td>Letzte Wartung</td><td class="c-v" style="text-align:right">{_a["wartung"]}</td></tr>
+          <tr><td>Zustand</td><td style="color:{_zf};font-weight:bold;text-align:right">{_z_text(_a["zustand"])}</td></tr>
+        </table>
+        <div style="margin-top:10px;padding:8px 10px;background:#0f1a30;border-radius:4px;font-size:0.8em;color:#b2bec3">
+          💡 Für eine Wartung oder Instandsetzung dieser Armatur bitte den Auswahldialog unten verwenden.
+        </div>
+      </div>
+    </div>
+  </div>
+</details>'''
+
+    # --- Wartungsauftrag (bei Button-Klick) ---
+    _auftrag = ""
+    if dep_wartung_btn.value and dep_armatur_auswahl.value and dep_armatur_auswahl.value != "—":
+        _sel_kks = dep_armatur_auswahl.value.split()[0]
+        _sel = DEP_ARMATUREN.get(_sel_kks)
+        if _sel:
+            _auftrag_nr = f"WA-D{2026000 + (sum(map(ord, _sel_kks)) % 1000):06d}"
+            _datum = _dt.datetime.now().strftime("%d.%m.%Y %H:%M")
+            _auftrag = f'''
+<div style="background:#fffdf5;color:#1a1a2e;border:2px solid #5a4820;border-radius:6px;padding:16px 20px;margin-top:10px;font-family:'Consolas','Courier New',monospace">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a1a2e;padding-bottom:8px;margin-bottom:10px">
+    <div>
+      <div style="font-size:0.75em;color:#5a4820;letter-spacing:1.5px">ABFALL- &amp; ENERGIEZENTRUM SCHWIERBACH – DEPONIEBETRIEB</div>
+      <div style="font-size:1.1em;font-weight:bold">WARTUNGSAUFTRAG / INSTANDSETZUNG</div>
+    </div>
+    <div style="text-align:right;font-size:0.8em;color:#5a4820">
+      <div><strong style="color:#1a1a2e">Auftrag-Nr.: {_auftrag_nr}</strong></div>
+      <div>Ausgestellt: {_datum}</div>
+      <div>Priorität: {"HOCH (Störung)" if _sel["zustand"]=="defekt" else "MITTEL"}</div>
+    </div>
+  </div>
+  <table style="width:100%;font-size:0.88em;border-collapse:collapse">
+    <tr><td style="padding:3px 8px;color:#5a4820;width:35%">Armatur (KKS)</td><td style="padding:3px 8px;font-weight:bold">{_sel["kks"]}</td></tr>
+    <tr><td style="padding:3px 8px;color:#5a4820">Typ / Modell</td><td style="padding:3px 8px;font-weight:bold">{_sel["kurz"]} · {_sel["hersteller"]} {_sel["modell"]}</td></tr>
+    <tr><td style="padding:3px 8px;color:#5a4820">Einbauort</td><td style="padding:3px 8px;font-weight:bold">{_sel["einbau"]}</td></tr>
+    <tr><td style="padding:3px 8px;color:#5a4820">Nennweite / Druckstufe</td><td style="padding:3px 8px;font-weight:bold">DN {_sel["dn"]} / PN {_sel["pn"]}</td></tr>
+    <tr><td style="padding:3px 8px;color:#5a4820">Werkstoff</td><td style="padding:3px 8px;font-weight:bold">{_sel["werkstoff"]}</td></tr>
+    <tr><td style="padding:3px 8px;color:#5a4820">Serien-Nr. / Baujahr</td><td style="padding:3px 8px;font-weight:bold">{_sel["serien"]} · {_sel["baujahr"]}</td></tr>
+    <tr><td style="padding:3px 8px;color:#5a4820">Aktueller Zustand</td><td style="padding:3px 8px;font-weight:bold;color:{_z_farbe(_sel["zustand"])}">{_z_text(_sel["zustand"])}</td></tr>
+    <tr><td style="padding:3px 8px;color:#5a4820;vertical-align:top">Anlass / Befund</td><td style="padding:3px 8px">{_sel.get("meldung") or "Routine-Wartung, planmäßig"}</td></tr>
+  </table>
+  <div style="margin-top:12px;padding-top:8px;border-top:1px dashed #5a4820">
+    <table style="width:100%;font-size:0.85em">
+      <tr><td style="padding:3px 8px;color:#5a4820;width:35%">Meldende Stelle</td><td style="padding:3px 8px">Deponiebetrieb (Auszubildende/-r)</td></tr>
+      <tr><td style="padding:3px 8px;color:#5a4820">Empfänger</td><td style="padding:3px 8px">Leitstand / Instandhaltung</td></tr>
+      <tr><td style="padding:3px 8px;color:#5a4820">Erforderliche Unterlagen</td><td style="padding:3px 8px">Betriebsanleitung, Explosionszeichnung, Stückliste</td></tr>
+    </table>
+  </div>
+  <div style="margin-top:10px;padding:8px 10px;background:#f4f0e0;border-left:3px solid #5a4820;font-size:0.82em">
+    <strong>📩 Auftrag an den Leitstand übermittelt.</strong> Der Leitstand bestätigt den Eingang und
+    terminiert die Maßnahme mit der Instandhaltung. Bei Störungsmeldungen (Priorität HOCH) erfolgt
+    die Kontaktaufnahme binnen 30 Minuten.
+  </div>
+</div>'''
+            if _sel_kks == "HS-SW-02":
+                _rm_zeit = (_dt.datetime.now() + _dt.timedelta(minutes=17)).strftime("%H:%M")
+                _auftrag += f'''
+<div style="background:#f5f8fc;color:#1a1a2e;border:2px solid #2D6A2E;border-radius:6px;padding:16px 20px;margin-top:14px;font-family:Arial,Helvetica,sans-serif;font-size:0.9em;line-height:1.45">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #2D6A2E;padding-bottom:6px;margin-bottom:10px">
+    <div style="font-weight:bold;color:#2D6A2E;font-size:1.05em">📞 Rückmeldung Instandhaltung / Werkstatt</div>
+    <div style="font-size:0.85em;color:#555">zu Auftrag {_auftrag_nr} · heute, {_rm_zeit} Uhr</div>
+  </div>
+  <p style="margin:0 0 8px"><strong>Von:</strong> Werkstattmeister Instandhaltung AEZ<br>
+  <strong>An:</strong> Deponiebetrieb (Auszubildende/-r)</p>
+  <p style="margin:0 0 8px">Moin, euer Auftrag ist angekommen. Ich war gerade am Sammelbecken und habe mir HS-SW-02 angesehen:
+  Der <strong>Bügel (Pos. 166)</strong> ist durch den Anfahrschaden bleibend verbogen. Alles andere sieht auf den ersten Blick
+  in Ordnung aus. KSB kann den Bügel nicht liefern – wir fertigen ihn selbst in unserer Werkstatt.
+  Den alten Bügel habe ich ausgebaut und eine Zeichnung davon angefertigt (liegt euch vor).
+  Solange der Schieber nicht bedienbar ist, kann der Zulauf zum SB-1 im Störfall nicht abgesperrt werden.</p>
+  <p style="margin:0 0 4px">Bitte bereitet bis zur nächsten Besprechung Folgendes vor:</p>
+  <ol style="margin:0 0 10px;padding-left:22px;list-style:decimal outside">
+    <li><strong>Werkstoff für den neuen Bügel festlegen</strong> – mit nachvollziehbarer Begründung.
+        Der Originalwerkstoff S275JR ist nicht am Lager. Eine Bestellung dauert ca. 3 Wochen – so lange
+        wollen wir nicht warten. Nehmt also bitte etwas aus dem Lagerbestand (siehe unten).
+        Denkt daran: Am Sammelbecken ist die Luft feucht und durch das Sickerwasser chlorid- und ammoniumhaltig.</li>
+    <li><strong>Arbeitsplan für die Fertigung des Bügels</strong> (Zuschnitt, Bearbeitung, Biegen, Korrosionsschutz, Prüfung).</li>
+    <li><strong>Arbeitsplan für Ausbau, Wartung und Wiedereinbau</strong> des Schiebers. Wenn die Armatur schon draußen ist,
+        machen wir die fällige Wartung gleich mit (letzte Wartung 03/2023).</li>
+  </ol>
+  <div style="font-weight:bold;color:#2D6A2E;margin:6px 0 4px">Lagerbestand Blech (Werkstatt, Regal B)</div>
+  <table style="border-collapse:collapse;width:100%;max-width:560px;font-size:0.95em">
+    <tr style="background:#2D6A2E;color:#fff">
+      <th style="text-align:left;padding:4px 8px">Werkstoff</th>
+      <th style="text-align:left;padding:4px 8px">Abmessung (Tafel)</th>
+      <th style="text-align:right;padding:4px 8px">Preis</th></tr>
+    <tr style="background:#e3efe3"><td style="padding:4px 8px">S235JR</td><td style="padding:4px 8px">1200 × 800 × 7 mm</td><td style="padding:4px 8px;text-align:right">1000 €/t</td></tr>
+    <tr><td style="padding:4px 8px">EN AW-6082-T6</td><td style="padding:4px 8px">800 × 600 × 8 mm</td><td style="padding:4px 8px;text-align:right">3600 €/t</td></tr>
+    <tr style="background:#e3efe3"><td style="padding:4px 8px">X5CrNi18-10</td><td style="padding:4px 8px">1000 × 600 × 5 mm</td><td style="padding:4px 8px;text-align:right">4400 €/t</td></tr>
+  </table>
+  <div style="font-weight:bold;color:#2D6A2E;margin:12px 0 4px">Was ihr über unsere Werkstatt wissen müsst</div>
+  <ul style="margin:0;padding-left:22px;list-style:disc outside">
+    <li>Zuschnitt aus der Tafel: Tafelschere bis 6 mm, darüber Plasmaschneiden. Bandsäge und Ständerbohrmaschine sind vorhanden.</li>
+    <li>Biegen: Abkantbank mit wechselbaren Oberwerkzeugen (Biegeradien innen 5, 10, 20, 30 und 50 mm).</li>
+    <li>Schweißen: MAG und WIG möglich.</li>
+    <li>Beschichten: 2K-Epoxid können wir selbst auftragen (2 Schichten, je Schicht 24 h Trockenzeit).
+        Pulverbeschichten nur über eine Fremdfirma (ca. 1 Woche Lieferzeit).</li>
+    <li>Verrechnungssatz Werkstatt: 58 €/h.</li>
+    <li>Schrauben und Muttern aus A2 oder A4 sowie Ersatzteile für die Stopfbuchspackung bestellt das Lager bei Bedarf über KSB (Lieferung 2 Tage).</li>
+  </ul>
+  <p style="margin:10px 0 0">Bei Fragen meldet euch einfach. Gruß aus der Werkstatt</p>
+</div>'''
+
+    dep_armaturen = mo.vstack([
+        mo.Html(_liste),
+        mo.Html(f'''<div class="pls"><div class="pls-c">
+            <h3>🔍 Auffällige Armaturen (Details)</h3>
+            <p style="font-size:0.82em;color:#b2bec3;margin:0 0 10px">Klick auf eine Zeile öffnet die Detailansicht mit Original-Typenschild und Betriebsdaten.</p>
+            {_details or '<p style="color:#00b894">Keine auffälligen Armaturen.</p>'}
+        </div></div>'''),
+        mo.Html('''<div class="pls"><div class="pls-c" style="border-color:#fdcb6e">
+            <h3 style="color:#fdcb6e">📨 Wartung beim Leitstand anmelden</h3>
+            <p style="font-size:0.85em;color:#b2bec3;margin:0 0 10px">Armatur aus der Liste wählen und den Wartungsauftrag an den Leitstand übermitteln.
+            Das System erzeugt automatisch ein Auftragsformular mit allen Stammdaten.</p>
+        </div></div>'''),
+        mo.hstack([dep_armatur_auswahl, dep_wartung_btn], justify="start", gap=1),
+        mo.Html(f'<div class="pls">{_auftrag}</div>') if _auftrag else mo.Html(""),
+    ])
+    return (dep_armaturen,)
 
 
 if __name__ == "__main__":
