@@ -1099,6 +1099,7 @@ def _(GRUNDRISS_URL, dep_armaturen, MVA_URL, S_PRESETS, S_STAGES, bio_t, heizwer
         ("Fließgeschw. Starkregen", "v_SR = 1,80 m/s"),
         ("Förderpumpen", "2 × Tauchmotor-KP (1 Betrieb, 1 Reserve)"),
         ("Weiterleitung nach", "Sickerwasserbehandlungsanlage (SWBA)"),
+        ("Notstauvolumen (Betreibervorgabe nach Risikobetrachtung gem. DIN EN 16932-1)", "Starkregenzufluss mind. 30 min ohne Förderung aufnehmen"),
     ]
     sw_datenblatt_html = f"""<div style="background:#16213e;border:1px solid #0f3460;border-radius:6px;padding:12px;margin-bottom:10px;color:#dfe6e9;background:#fffef5;color:#1a1a2e;border:2px solid #5a4820">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a1a2e;padding-bottom:6px;margin-bottom:8px">
