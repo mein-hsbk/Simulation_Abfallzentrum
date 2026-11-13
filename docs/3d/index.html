@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>Abfall- &amp; Energiezentrum Schwierbach – 3D-Ansicht</title>
+<link rel="icon" href="../favicon-32x32.png">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#bcd4e6;font-family:Arial,Helvetica,sans-serif;color:#fff;-webkit-tap-highlight-color:transparent}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  #top{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;display:flex;align-items:center;gap:10px;
+       background:linear-gradient(#16213eee,#16213e99 70%,#16213e00);pointer-events:none}
+  #top h1{margin:0;font-size:15px;letter-spacing:.3px}
+  #top .sub{font-size:11px;color:#b2bec3;font-family:monospace}
+  #top .sp{flex:1}
+  .btn{pointer-events:auto;background:#0f3460;border:1px solid #2d4a7a;color:#fff;border-radius:6px;padding:7px 10px;font-size:13px;cursor:pointer;white-space:nowrap}
+  .btn.on{background:#00b894;border-color:#00b894;color:#0b1a2e;font-weight:bold}
+  #bottom{position:fixed;left:0;right:0;bottom:0;padding:8px 10px calc(env(safe-area-inset-bottom) + 8px);background:#16213ef0;border-top:1px solid #0f3460}
+  #tour{display:flex;align-items:center;gap:6px}
+  #tname{flex:1;text-align:center;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+  #tname small{color:#b2bec3;font-family:monospace}
+  #opts{display:flex;gap:6px;margin-top:7px;overflow-x:auto}
+  #opts .btn{font-size:12px;padding:6px 9px}
+  #info{position:fixed;left:8px;right:8px;max-width:460px;margin:0 auto;background:#16213ef5;border:1px solid #2d4a7a;border-radius:10px;
+        padding:10px 12px 12px;display:none;max-height:42vh;overflow:auto;box-shadow:0 6px 24px #0007}
+  #info h2{margin:0 26px 2px 0;font-size:15px;color:#ffeaa7}
+  #info .kks{font-family:monospace;font-size:11px;color:#74b9ff;margin-bottom:6px}
+  #info p{font-size:12.5px;line-height:1.4;margin:6px 0 8px;color:#dfe6e9}
+  #info table{border-collapse:collapse;font-size:12px}
+  #info td{padding:3px 10px 3px 0;vertical-align:top;border-bottom:1px solid #0f3460}
+  #info td.k{color:#b2bec3;white-space:nowrap}
+  #info a{color:#74b9ff;font-weight:bold}
+  #info .note{font-size:10.5px;color:#8395a7;margin-top:6px}
+  #close{position:absolute;right:8px;top:6px;background:none;border:none;color:#b2bec3;font-size:20px;cursor:pointer}
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;left:0;top:0;background:#16213ed9;border:1px solid #2d4a7a;color:#fff;
+       font-size:10.5px;padding:2px 5px;border-radius:4px;white-space:nowrap;pointer-events:auto;cursor:pointer;font-family:monospace}
+  .lbl.sel{background:#ffd54a;color:#16213e;border-color:#ffd54a;font-weight:bold}
+  #legend{position:fixed;right:8px;display:none;background:#16213ee6;border:1px solid #2d4a7a;border-radius:8px;padding:6px 8px;font-size:11px;line-height:1.55}
+  #legend i{display:inline-block;width:16px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  #load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#16213e;color:#b2bec3;font-size:14px;z-index:9}
+  @media (max-width:520px){ #top .opt{display:none} }
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="labels"></div>
+<div id="top">
+  <div><h1>Abfall- &amp; Energiezentrum Schwierbach · 3D</h1><div class="sub">MVA 2 Linien · Sortierung · Vergärung<span class="opt"> · Deponie DK II 41 ha</span></div></div>
+  <div class="sp"></div>
+  <button class="btn" id="bHome" title="Gesamtansicht">⌂ Übersicht</button>
+</div>
+<div id="info"><button id="close" aria-label="Schließen">×</button><div id="infoBody"></div></div>
+<div id="legend"></div>
+<div id="bottom">
+  <div id="tour">
+    <button class="btn" id="bPrev" aria-label="Zurück">‹</button>
+    <div id="tname">Rundgang starten ›</div>
+    <button class="btn" id="bNext" aria-label="Weiter">›</button>
+    <button class="btn" id="bAuto">▶ Auto</button>
+  </div>
+  <div id="opts">
+    <button class="btn on" id="bLbl">Beschriftung</button>
+    <button class="btn" id="bFlow">Stoffströme</button>
+    <button class="btn on" id="bTraffic">Fahrzeuge</button>
+  </div>
+</div>
+<div id="load">3D-Modell wird geladen …</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ------------------------------------------------------------------ Renderer / Szene
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xbcd4e6);
+scene.fog = new THREE.Fog(0xbcd4e6, 2600, 6000);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 1, 6000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.maxPolarAngle = 1.46; controls.minDistance = 20; controls.maxDistance = 2600;
+controls.screenSpacePanning = false;
+
+scene.add(new THREE.HemisphereLight(0xdcecff, 0x5d6b48, 0.85));
+const sun = new THREE.DirectionalLight(0xfff3e0, 2.1);
+sun.position.set(-420, 380, 300); sun.target.position.set(300, 0, 0); scene.add(sun.target);
+sun.castShadow = true;
+const SM = Math.min(4096, renderer.capabilities.maxTextureSize);
+sun.shadow.mapSize.set(SM, SM);
+Object.assign(sun.shadow.camera, { left: -700, right: 700, top: 520, bottom: -520, near: 50, far: 1800 });
+sun.shadow.bias = -0.0006; sun.shadow.normalBias = 1.2;
+scene.add(sun);
+
+// ------------------------------------------------------------------ Materialien
+const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: o.r ?? 0.85, metalness: o.m ?? 0, ...o.x });
+const M = {
+  concrete: std(0xbab6ad), concreteDark: std(0x8f8b84), asphalt: std(0x45474a, { r: 0.95 }), gravel: std(0xa39c8c, { r: 1 }),
+  steel: std(0x8d949b, { r: 0.4, m: 0.6 }), steelDark: std(0x4f565c, { r: 0.5, m: 0.5 }), galv: std(0xb7bcc1, { r: 0.45, m: 0.55 }),
+  grating: std(0x7a8086, { r: 0.6, m: 0.4 }), brick: std(0x98563f), plaster: std(0xe8e3d8),
+  sheet: std(0xc9cdd2, { r: 0.55, m: 0.25 }), sheetBlue: std(0x4f6f8f, { r: 0.55, m: 0.25 }), sheetGreen: std(0x5d7a68, { r: 0.55, m: 0.2 }),
+  sheetDark: std(0x6d747b, { r: 0.55, m: 0.3 }), roof: std(0x5b5f63, { r: 0.8 }), window: std(0x2a3c4e, { r: 0.15, m: 0.4 }),
+  door: std(0x6b7178, { r: 0.6, m: 0.3 }), frp: std(0x9ea79c, { r: 0.6 }), membrane: std(0xc3c9be, { r: 0.7 }), silo: std(0xe3e5e2, { r: 0.6, m: 0.2 }),
+  insul: std(0xd4d8dc, { r: 0.35, m: 0.7 }), slag: std(0x5d5b57, { r: 1 }), compost: std(0x4a3a2a, { r: 1 }), trafo: std(0x6a7a70, { r: 0.6, m: 0.3 }),
+  orange: std(0xe67e22, { r: 0.5, m: 0.3 }), yellowM: std(0xe8b923, { r: 0.5, m: 0.3 }), white: std(0xf0f0ee, { r: 0.5, m: 0.2 }),
+  rubber: std(0x222222), trunk: std(0x5a4430),
+  fence: new THREE.MeshStandardMaterial({ color: 0x7f8c84, transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide })
+};
+const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+const cylGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
+
+// ------------------------------------------------------------------ Hilfsfunktionen
+function box(parent, w, h, d, mat, x, y, z, ry = 0, shadow = true) {
+  const m = new THREE.Mesh(boxGeo, mat); m.scale.set(w, h, d); m.position.set(x, y + h / 2, z); m.rotation.y = ry;
+  m.castShadow = shadow; m.receiveShadow = true; parent.add(m); return m;
+}
+function cyl(parent, rt, rb, h, mat, x, y, z, seg = 32) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat); m.position.set(x, y + h / 2, z);
+  m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
+}
+function beam(parent, p0, p1, w, h, mat) { // Quader zwischen zwei Punkten (Förderbrücke, Kanal)
+  const a = new THREE.Vector3(...p0), b = new THREE.Vector3(...p1), d = b.clone().sub(a), L = d.length();
+  const m = new THREE.Mesh(boxGeo, mat); m.scale.set(L, h, w); m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), d.normalize()); m.castShadow = m.receiveShadow = true; parent.add(m); return m;
+}
+const inst = {};
+function ib(key, geo, mat, x, y, z, sx, sy, sz, ry = 0, cast = true) { (inst[key] ||= { geo, mat, cast, list: [] }).list.push([x, y, z, sx, sy, sz, ry]); }
+function flushInst() {
+  const o = new THREE.Object3D();
+  for (const k in inst) {
+    const r = inst[k], im = new THREE.InstancedMesh(r.geo, r.mat, r.list.length);
+    r.list.forEach((p, i) => { o.position.set(p[0], p[1], p[2]); o.scale.set(p[3], p[4], p[5]); o.rotation.set(0, p[6], 0); o.updateMatrix(); im.setMatrixAt(i, o.matrix); });
+    im.castShadow = r.cast; im.receiveShadow = true; scene.add(im);
+  }
+}
+function railing(pts, y, h = 1.1) {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, z0] = pts[i], [x1, z1] = pts[i + 1], dx = x1 - x0, dz = z1 - z0, L = Math.hypot(dx, dz), ry = -Math.atan2(dz, dx);
+    ib('rail', boxGeo, M.galv, (x0 + x1) / 2, y + h, (z0 + z1) / 2, L, 0.06, 0.06, ry, false);
+    const n = Math.max(1, Math.ceil(L / 2));
+    for (let k = 0; k <= n; k++) ib('post', boxGeo, M.galv, x0 + dx * k / n, y + h / 2, z0 + dz * k / n, 0.06, h, 0.06, ry, false);
+  }
+}
+const circlePts = (cx, cz, r, n = 40) => Array.from({ length: n + 1 }, (_, i) => [cx + r * Math.cos(i / n * Math.PI * 2), cz + r * Math.sin(i / n * Math.PI * 2)]);
+function building(parent, cx, cz, w, d, h, o = {}) {
+  box(parent, w, h, d, o.wall || M.sheet, cx, 0, cz);
+  if (o.gable) {
+    const s = new THREE.Shape(); s.moveTo(-d / 2 - 0.4, 0); s.lineTo(d / 2 + 0.4, 0); s.lineTo(0, o.gable); s.closePath();
+    const g = new THREE.ExtrudeGeometry(s, { depth: w + 0.6, bevelEnabled: false }); g.rotateY(Math.PI / 2); g.translate(-(w + 0.6) / 2, 0, 0);
+    const m = new THREE.Mesh(g, o.roof || M.roof); m.position.set(cx, h, cz); m.castShadow = m.receiveShadow = true; parent.add(m);
+  } else box(parent, w + 0.4, 0.5, d + 0.4, o.roof || M.roof, cx, h, cz);
+  if (o.band) for (const side of [1, -1]) for (const y of o.band) ib('win', boxGeo, M.window, cx, y, cz + side * (d / 2 + 0.04), w - 3, 1.3, 0.1, 0, false);
+  for (const dr of (o.doors || [])) {
+    const W = dr.w || 1.2, H = dr.h || 2.2;
+    if (dr.s === 's' || dr.s === 'n') ib('door', boxGeo, M.door, cx + (dr.off || 0), H / 2, cz + (dr.s === 's' ? 1 : -1) * (d / 2 + 0.06), W, H, 0.12, 0, false);
+    else ib('door', boxGeo, M.door, cx + (dr.s === 'e' ? 1 : -1) * (w / 2 + 0.06), H / 2, cz + (dr.off || 0), 0.12, H, W, 0, false);
+  }
+}
+
+// ------------------------------------------------------------------ Gelände mit Deponiekörper
+const FENCE = { x0: -270, x1: 892, z0: -348, z1: 348 };
+const DEP = { x0: 220, x1: 860, z0: -320, z1: 320, r: 70 };
+function depD(x, z) { // vorzeichenbehafteter Abstand zum Deponierand (positiv = innen)
+  const cx = (DEP.x0 + DEP.x1) / 2, cz = (DEP.z0 + DEP.z1) / 2, hx = (DEP.x1 - DEP.x0) / 2 - DEP.r, hz = (DEP.z1 - DEP.z0) / 2 - DEP.r;
+  const qx = Math.abs(x - cx) - hx, qz = Math.abs(z - cz) - hz;
+  return -(Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - DEP.r);
+}
+function depH(d) { // Böschung 1:3 mit Bermen alle 10 m, Plateau ~31–33 m
+  if (d <= 0) return 0; let pos = 0, lvl = 0;
+  for (let k = 0; k < 3; k++) {
+    if (d < pos + 30) return lvl + (d - pos) / 3;
+    pos += 30; lvl += 10;
+    if (k < 2) { if (d < pos + 6) return lvl; pos += 6; }
+  }
+  return 30 + Math.min(12, (d - pos) * 0.055);
+}
+const activeArea = (x, z) => x + 0.6 * z + 18 * Math.sin(z / 37) > 520; // offener Einbauabschnitt (Nordost)
+const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+function H(x, z) {
+  const d = depD(x, z);
+  if (d > 0) return depH(d);
+  if (d > -10 && d < -6) return -1.0;                                   // Randgraben
+  const out = Math.max(FENCE.x0 - x, x - FENCE.x1, FENCE.z0 - z, z - FENCE.z1, 0);
+  return 1.2 * (Math.sin(x * 0.011) + Math.sin(z * 0.013 + 1.2)) * sstep(0, 80, out);
+}
+{
+  const W = 1700, D = 1250, g = new THREE.PlaneGeometry(W, D, 425, 312).rotateX(-Math.PI / 2); g.translate(300, 0, 0);
+  const p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color();
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i), y = H(x, z); p.setY(i, y);
+    const d = depD(x, z), n = 0.5 + 0.5 * Math.sin(x * 0.07 + Math.sin(z * 0.05) * 2) * Math.sin(z * 0.06);
+    const out = Math.max(FENCE.x0 - x, x - FENCE.x1, FENCE.z0 - z, z - FENCE.z1, 0);
+    if (out > 0) {
+      if (x < -330 || z > 420) c.setHSL(((Math.floor((z + 900) / 70) + Math.floor((x + 900) / 160)) % 3) === 0 ? 0.15 : 0.24, 0.42, 0.40 + n * 0.06);
+      else c.setRGB(0.36 + n * 0.05, 0.52 + n * 0.05, 0.27);
+    } else if (d > 0) {
+      const berm = (d > 30 && d < 36) || (d > 66 && d < 72);
+      if (activeArea(x, z) && y > 1) c.setRGB(0.40 + n * 0.04, 0.38 + n * 0.04, 0.35);
+      else if (berm) c.setRGB(0.60, 0.58, 0.52);
+      else c.setRGB(0.40 + n * 0.05, 0.55 + n * 0.05, 0.30);
+    } else if (d > -6) c.setRGB(0.58, 0.56, 0.50);                      // Randweg
+    else if (d > -10) c.setRGB(0.30, 0.38, 0.25);                       // Randgraben
+    else c.setRGB(0.42 + n * 0.04, 0.58 + n * 0.04, 0.30);
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
+  const ground = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+  ground.receiveShadow = true; scene.add(ground);
+}
+// Geländefolgendes Band (Rampe)
+function drapedRibbon(pts, w, mat, step = 3, lift = 0.25) {
+  const S = []; for (let i = 0; i < pts.length - 1; i++) { const [x0, z0] = pts[i], [x1, z1] = pts[i + 1], n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / step); for (let k = 0; k < n; k++) S.push([x0 + (x1 - x0) * k / n, z0 + (z1 - z0) * k / n]); }
+  S.push(pts[pts.length - 1]);
+  const pos = [], idx = [];
+  S.forEach((s, i) => {
+    const a = S[Math.max(0, i - 1)], b = S[Math.min(S.length - 1, i + 1)]; let tx = b[0] - a[0], tz = b[1] - a[1]; const l = Math.hypot(tx, tz); tx /= l; tz /= l;
+    const nx = -tz * w / 2, nz = tx * w / 2;
+    pos.push(s[0] + nx, Math.max(H(s[0] + nx, s[1] + nz), H(s[0], s[1])) + lift, s[1] + nz, s[0] - nx, Math.max(H(s[0] - nx, s[1] - nz), H(s[0], s[1])) + lift, s[1] - nz);
+    if (i) { const k = i * 2; idx.push(k - 2, k, k - 1, k - 1, k, k + 1); }
+  });
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.material.side = THREE.DoubleSide; scene.add(m);
+}
+const RAMP = [[196, 262], [214, 250], [250, 222], [290, 186], [330, 150], [370, 118], [430, 70], [520, -10], [600, -90], [660, -140]];
+drapedRibbon(RAMP, 9, M.gravel);
+
+// Straßen
+const roads = [[-430, 200, 146, 154], [-110, -102, -150, 154], [-110, 200, -150, -142], [192, 200, -150, 336], [-110, 200, 226, 234],
+  [-262, -198, 138, 162], [-102, -90, -38, 28], [-176, -124, 186, 206], [-30, 100, -94, -88], [100, 192, 160, 166]];
+for (const [x0, x1, z0, z1] of roads) box(scene, x1 - x0, 0.06, z1 - z0, M.asphalt, (x0 + x1) / 2, 0, (z0 + z1) / 2, 0, false);
+// Zaun
+{
+  const { x0, x1, z0, z1 } = FENCE, sides = [[x0, z0, x1, z0], [x1, z0, x1, z1], [x1, z1, x0, z1], [x0, z1, x0, 162], [x0, 138, x0, z0]];
+  for (const [a, b, c, d] of sides) {
+    const L = Math.hypot(c - a, d - b), ry = -Math.atan2(d - b, c - a);
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(L, 2.2), M.fence); pl.position.set((a + c) / 2, 1.1, (b + d) / 2); pl.rotation.y = ry; scene.add(pl);
+    const n = Math.ceil(L / 4); for (let k = 0; k <= n; k++) ib('fpost', cylGeo, M.galv, a + (c - a) * k / n, 1.15, b + (d - b) * k / n, 0.1, 2.3, 0.1, 0, false);
+  }
+}
+
+// ------------------------------------------------------------------ Registry
+const comps = {}; const pickables = [];
+function reg(id, group, info) {
+  scene.add(group); group.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(group), c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3());
+  group.traverse(o => { if (o.isMesh) { o.userData.comp = id; pickables.push(o); } });
+  comps[id] = { id, group, ...info, center: info.center || new THREE.Vector3(c.x, 0, c.z), anchor: info.anchor || new THREE.Vector3(c.x, b.max.y + 3, c.z), radius: info.radius || Math.max(s.x, s.z) / 2, height: s.y };
+}
+const spinners = [];
+
+// ------------------------------------------------------------------ EINGANG / VERWALTUNG
+{
+  const g = new THREE.Group();
+  for (const z of [143, 157]) { box(g, 18, 0.25, 3.4, M.steelDark, -230, 0, z); box(g, 0.25, 1.2, 0.25, M.galv, -219, 0, z - 2.3); }
+  building(g, -230, 150, 8, 5, 3.5, { wall: M.plaster, doors: [{ s: 'w' }], band: [2] });
+  box(g, 7, 0.15, 0.15, M.orange, -217, 1.1, 141); box(g, 7, 0.15, 0.15, M.orange, -217, 1.1, 159);
+  reg('waage', g, { name: 'Eingangsbereich mit Fahrzeugwaage', kks: 'Waage 1 / 2 · Eingangskontrolle',
+    text: 'Alle Anlieferungen werden verwogen und kontrolliert (Abfallart, Begleitpapiere, Sichtkontrolle), danach wird das Fahrzeug der jeweiligen Annahmestelle zugewiesen.',
+    rows: [['Hausmüll', '→ Müllbunker MVA (Standard 675 t/d)'], ['Sperr-/Gewerbeabfall', '→ Sortieranlage (120 t/d)'], ['Bioabfall', '→ Vergärung (90 t/d)'], ['Klärschlamm', '→ Trocknung (40 t/d, u. a. KA Schwierbach)']] });
+}
+{
+  const g = new THREE.Group();
+  building(g, -200, 196, 40, 15, 10, { wall: M.plaster, band: [2.4, 6.4], doors: [{ s: 's', off: -8, w: 2.2, h: 2.6 }] });
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 96; const c2 = cv.getContext('2d');
+  c2.font = 'bold 56px Arial'; c2.fillStyle = '#2b3a4a'; c2.textAlign = 'center'; c2.textBaseline = 'middle'; c2.fillText('ABFALL- & ENERGIEZENTRUM SCHWIERBACH', 512, 50);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(22, 2.1), new THREE.MeshStandardMaterial({ map: t, transparent: true })); sg.position.set(-200, 8.9, 203.6); sg.rotation.y = Math.PI; g.add(sg);
+  const sg2 = sg.clone(); sg2.position.z = 188.4; sg2.rotation.y = 0; g.add(sg2);
+  reg('verw', g, { name: 'Verwaltung + Labor', kks: 'Labor · Leitwarte',
+    text: 'Verwaltung, Leitwarte und zentrales Labor des Verbunds. Das Labor übernimmt die Eigenüberwachung aller Anlagen.',
+    rows: [['Labor', 'Eigenüberwachung, Emissionsanalytik, Sickerwasser- und Eluatanalytik'], ['Leitwarte', 'Kontrollzentrum – Betriebsvorgaben des Verbunds']] });
+}
+// PKW
+{
+  const cols = [0x2d3436, 0xdfe6e9, 0x0984e3, 0xb2bec3, 0xd63031, 0x636e72, 0xffffff, 0x1e3799];
+  const body = new THREE.InstancedMesh(boxGeo, std(0xffffff, { r: .35, m: .5 }), 14), cab = new THREE.InstancedMesh(boxGeo, M.window, 14), o = new THREE.Object3D();
+  for (let i = 0; i < 14; i++) {
+    const x = -173 + (i % 7) * 7, z = i < 7 ? 190 : 202;
+    o.position.set(x, 0.85, z); o.scale.set(1.8, 1.0, 4.3); o.updateMatrix(); body.setMatrixAt(i, o.matrix); body.setColorAt(i, new THREE.Color(cols[i % 8]));
+    o.position.set(x, 1.65, z); o.scale.set(1.6, 0.65, 2.3); o.updateMatrix(); cab.setMatrixAt(i, o.matrix);
+  }
+  body.castShadow = true; scene.add(body, cab);
+}
+
+// ------------------------------------------------------------------ SORTIERANLAGE (LS 6.1)
+{
+  const g = new THREE.Group();
+  building(g, -140, 100, 40, 20, 8, { wall: M.sheetBlue, roof: M.roof, doors: [{ s: 's', off: -12, w: 5, h: 5 }, { s: 's', off: 12, w: 5, h: 5 }, { s: 'n', off: 0, w: 4, h: 4.5 }] });
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96; const c2 = cv.getContext('2d');
+  c2.font = 'bold 60px Arial'; c2.fillStyle = '#ffffff'; c2.textAlign = 'center'; c2.textBaseline = 'middle'; c2.fillText('RecyTech', 256, 50);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(9, 1.7), new THREE.MeshStandardMaterial({ map: t, transparent: true })); sg.position.set(-140, 6.3, 110.1); g.add(sg);
+  // Ballenlager
+  const bc = [0x3b82c4, 0xe8e8e8, 0x8b6b4a, 0xb0b5ba, 0xc94f3d, 0x6aa84f];
+  const bales = new THREE.InstancedMesh(boxGeo, std(0xffffff, { r: 0.9 }), 6 * 4 * 3), o = new THREE.Object3D(); let k = 0;
+  for (let gx = 0; gx < 6; gx++) for (let r = 0; r < 4; r++) for (let h = 0; h < 3; h++) {
+    o.position.set(-157 + gx * 6.5 + (r % 2) * 1.3, 0.42 + h * 0.84, 78 + r * 1.25); o.scale.set(1.2, 0.82, 1.1); o.rotation.y = 0; o.updateMatrix();
+    bales.setMatrixAt(k, o.matrix); bales.setColorAt(k++, new THREE.Color(bc[gx]).offsetHSL(0, 0, (Math.random() - .5) * .08));
+  }
+  bales.castShadow = true; g.add(bales);
+  reg('sortier', g, { name: 'Wertstoffsortieranlage (RecyTech GmbH)', kks: 'LS 6.1 · Halle 40 m × 20 m',
+    text: 'Mechanische Aufbereitung von Sperr-, Gewerbe- und Wertstoffabfällen. Die Aggregatfolge wird in der Simulation frei konfiguriert; Wertstofffraktionen werden zu Ballen gepresst, der Sortierrest geht in den Müllbunker der MVA.',
+    rows: [['Halle', '40 m × 20 m = 800 m², 8 m Höhe'], ['Durchsatz', 'ca. 5 t/h'], ['Standardlinie', 'Sieb → Windsichter → Magnet → Wirbelstrom → NIR'], ['Medien', '400 V, Druckluft, Kran 5 t'], ['Produkte', 'PET, PE, PP, Fe, Al, PPK, FKN (Ballen)']] });
+}
+
+// ------------------------------------------------------------------ MVA
+// Anlieferhalle + Bunker
+{
+  const g = new THREE.Group();
+  building(g, -72.5, -5, 35, 60, 14, { wall: M.sheetBlue });
+  for (let z = -27; z <= 17; z += 11) ib('door', boxGeo, M.door, -90.1, 3.5, z, 0.15, 7, 6, 0, false);
+  box(g, 23, 34, 60, M.concrete, -43.5, 0, -5);
+  box(g, 23.4, 1, 60.4, M.roof, -43.5, 34, -5);
+  reg('bunker', g, { name: 'Anlieferhalle + Müllbunker', kks: 'MVA · Bunker / Krananlage',
+    text: 'Die Sammelfahrzeuge kippen in der geschlossenen Anlieferhalle in den Tiefbunker. Zwei Brückenkrane mischen den Müll (Heizwertausgleich) und beschicken die Aufgabetrichter der beiden Linien.',
+    rows: [['Anlieferung', 'Hausmüll + Sortierrest + getrockneter Klärschlamm'], ['Kran', 'Mischung, Beschickung Aufgabetrichter'], ['Unterdruck', 'Verbrennungsluft wird aus dem Bunker abgesaugt (geruchsfrei)']] });
+}
+// Kesselhaus
+{
+  const g = new THREE.Group();
+  box(g, 40, 48, 60, M.sheet, -12, 0, -5);
+  box(g, 40.4, 0.6, 60.4, M.roof, -12, 48, -5);
+  for (const z of [-35.1, 25.1]) box(g, 38, 4, 0.2, M.sheetDark, -12, 40, z, 0, false);
+  box(g, 14, 6, 10, M.sheetDark, -12, 48.6, -5);
+  reg('kessel', g, { name: 'MVA – Kesselhaus (2 Linien)', kks: 'Linie 1 / Linie 2 · Rost · Kessel',
+    text: 'Rostfeuerung mit nachgeschaltetem Abhitzekessel je Linie. Das Rauchgas muss nach der letzten Luftzufuhr mindestens 2 s bei über 850 °C verweilen; der erzeugte Dampf treibt die Turbine.',
+    rows: [['Kapazität', '2 Linien × 16,6 t/h ≈ 797 t/d'], ['Feuerung', 'Rostfeuerung, 850-°C-Kriterium (O₂/CO)'], ['Heizwert', 'Hausmüll Hu ≈ 10 MJ/kg (Standard)'], ['Reststoffe', 'Schlacke ≈ 27 % der Aufgabe']],
+    link: ['../mva/', 'MVA-Simulation öffnen ▸'] });
+}
+// Rauchgasreinigung
+{
+  const g = new THREE.Group();
+  for (const zc of [-19, 9]) {
+    for (const x of [-4, 4]) { const c = new THREE.Mesh(new THREE.ConeGeometry(3.6, 4, 4), M.steelDark); c.rotation.x = Math.PI; c.rotation.y = Math.PI / 4; c.position.set(18 + x, 4, zc); c.castShadow = true; g.add(c); }
+    box(g, 16, 12, 11, M.steelDark, 18, 6, zc);                                  // E-Filter 1
+    cyl(g, 4.2, 4.2, 16, M.sheet, 38, 12, zc, 32);                                 // Sprühtrockner
+    const sc = new THREE.Mesh(new THREE.ConeGeometry(4.2, 7, 32), M.sheet); sc.rotation.x = Math.PI; sc.position.set(38, 8.5, zc); g.add(sc);
+    for (const [dx, dz] of [[-3, -3], [3, -3], [3, 3], [-3, 3]]) box(g, 0.4, 12, 0.4, M.steelDark, 38 + dx, 0, zc + dz);
+    for (const x of [-3, 3]) { const c = new THREE.Mesh(new THREE.ConeGeometry(3, 3.5, 4), M.steelDark); c.rotation.x = Math.PI; c.rotation.y = Math.PI / 4; c.position.set(55 + x, 4.5, zc); g.add(c); }
+    box(g, 12, 10, 10, M.steelDark, 55, 6.2, zc);                                  // E-Filter 2
+    cyl(g, 2.8, 2.8, 24, M.frp, 68, 0, zc, 24); cyl(g, 2.8, 2.8, 24, M.frp, 76, 0, zc, 24);   // 2-st. Wäscher
+    box(g, 9, 10, 9, M.sheetDark, 88, 12, zc);                                     // SCR
+    for (const [dx, dz] of [[-4, -4], [4, -4], [4, 4], [-4, 4]]) box(g, 0.5, 12, 0.5, M.steelDark, 88 + dx, 0, zc + dz);
+    box(g, 10, 20, 10, M.sheetDark, 101, 0, zc);                                   // Aktivkoksfilter
+    box(g, 7, 5, 6, M.sheetGreen, 113, 0, zc);                                     // Saugzug
+    for (const [x0, x1, y] of [[26, 34, 15], [42, 49, 14], [61, 65.2, 12], [70.8, 73.2, 20], [78.8, 83.5, 18], [92.5, 96, 17], [106, 109.5, 3]])
+      beam(g, [x0, y, zc], [x1, y, zc], 2.6, 2.6, M.steel);
+    beam(g, [116.5, 2.5, zc], [126, 2.5, zc], 2.4, 2.4, M.steel);
+  }
+  beam(g, [8, 30, -19], [10, 15, -19], 3, 3, M.steel); beam(g, [8, 30, 9], [10, 15, 9], 3, 3, M.steel);
+  for (const [x, z] of [[62, 34], [72, 34]]) { for (const [dx, dz] of [[-1.6, -1.6], [1.6, -1.6], [1.6, 1.6], [-1.6, 1.6]]) box(g, 0.3, 6, 0.3, M.steelDark, x + dx, 0, z + dz); cyl(g, 2.2, 2.2, 12, M.silo, x, 6, z, 24); }
+  reg('rgr', g, { name: 'Rauchgasreinigung', kks: 'E-Filter 1 · SD · E-Filter 2 · Wäscher · SCR · AK',
+    text: 'Mehrstufige Reinigung nach Asdonkshof-Typ: Grobentstaubung, Sprühtrockner (Eindampfen von Abwasser und Deponiesickerwasser), Feinentstaubung, zweistufige Nasswäsche, Entstickung und Aktivkoksfilter als Polizeifilter.',
+    rows: [['Kette', 'E-Filter 1 → Sprühtrockner → E-Filter 2 → 2-st. Wäscher → SCR → Aktivkoks'], ['Flugasche', 'E-Filter 1 ~5.200 t/a, E-Filter 2 ~3.100 t/a'], ['Wäscher', 'Waschflüssigkeit + Kalkmilch → Gips'], ['Grenzwerte', '17. BImSchV']],
+    link: ['../mva/', 'MVA-Simulation öffnen ▸'] });
+}
+// Kamin
+const KAMIN = { x: 130, z: -5, h: 80 };
+{
+  const g = new THREE.Group();
+  cyl(g, 2.8, 3.8, KAMIN.h, M.concrete, KAMIN.x, 0, KAMIN.z, 32);
+  cyl(g, 2.85, 2.85, 3, M.steelDark, KAMIN.x, KAMIN.h - 3, KAMIN.z, 32);
+  cyl(g, 5.2, 5.2, 0.3, M.grating, KAMIN.x, 52, KAMIN.z, 32); railing(circlePts(KAMIN.x, KAMIN.z, 5.1, 32), 52.3);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff2a2a })); lamp.position.set(KAMIN.x + 2.9, KAMIN.h - 0.5, KAMIN.z); g.add(lamp);
+  reg('kamin', g, { name: 'Kamin', kks: 'Emissionsmessung (kontinuierlich)',
+    text: 'Ableitung des Reingases beider Linien. Auf der Messbühne werden die Emissionen kontinuierlich gemessen und mit den Grenzwerten der 17. BImSchV verglichen. Der sichtbare Schwaden ist kondensierter Wasserdampf aus der Nasswäsche.',
+    rows: [['Höhe', '≈ 80 m *'], ['Messung', 'Staub, HCl, SO₂, NOₓ, CO, Hg, C_ges'], ['Bezug', '17. BImSchV']], note: true });
+}
+// Energiezentrale: Turbinenhaus + Luftkondensator + Umspannwerk + Fernwärme
+{
+  const g = new THREE.Group();
+  building(g, -15, 60, 40, 22, 22, { wall: M.sheet, band: [14], doors: [{ s: 'w', w: 5, h: 6 }] });
+  beam(g, [-15, 30, 25], [-15, 18, 49], 2, 2, M.insul);
+  // Luftkondensator (ACC)
+  for (let x = 24; x <= 56; x += 8) for (const z of [62, 70, 78]) box(g, 0.7, 16, 0.7, M.steelDark, x, 0, z);
+  box(g, 36, 1, 18, M.steelDark, 40, 16, 70);
+  for (const z of [65.5, 74.5]) {
+    const s = new THREE.Shape(); s.moveTo(-4.4, 0); s.lineTo(4.4, 0); s.lineTo(0, 7); s.closePath();
+    const ag = new THREE.ExtrudeGeometry(s, { depth: 34, bevelEnabled: false }); ag.rotateY(Math.PI / 2); ag.translate(-17, 0, 0);
+    const a = new THREE.Mesh(ag, M.galv); a.position.set(40, 17, z); a.castShadow = true; g.add(a);
+    cyl(g, 0.9, 0.9, 34, M.insul, 40, 0, z).rotation.z = Math.PI / 2;
+  }
+  g.children.slice(-1)[0].position.y = 24.5; g.children.slice(-3)[0].position.y = 24.5;
+  for (const [z, w] of [[61, 0.2], [79, 0.2]]) box(g, 36, 5, w, M.sheet, 40, 18, z, 0, false);
+  for (let i = 0; i < 4; i++) for (const z of [65.5, 74.5]) {
+    const f = new THREE.Group(); f.position.set(26 + i * 9, 16.2, z);
+    for (let b = 0; b < 4; b++) { const bl = new THREE.Mesh(boxGeo, M.steelDark); bl.scale.set(3.6, 0.1, 0.6); bl.position.x = 0; bl.rotation.y = b * Math.PI / 4; f.add(bl); }
+    g.add(f); spinners.push({ obj: f, w: 2.5 });
+  }
+  // Umspannwerk
+  box(g, 26, 0.1, 20, M.gravel, 85, 0, 70, 0, false);
+  for (const z of [64, 76]) { box(g, 5, 3.5, 3.5, M.trafo, 82, 0, z); for (let k = 0; k < 6; k++) box(g, 0.15, 2.6, 2.8, M.trafo, 79 + k * 0.4 - 1, 0.4, z, 0, false); for (const dx of [-1.2, 0, 1.2]) cyl(g, 0.15, 0.2, 2, M.white, 82 + dx, 3.5, z, 8); }
+  for (const x of [92, 96]) { box(g, 0.4, 10, 0.4, M.galv, x, 0, 62); box(g, 0.4, 10, 0.4, M.galv, x, 0, 78); box(g, 0.4, 0.4, 16, M.galv, x, 10, 70); }
+  railing([[72, 60], [98, 60], [98, 80], [72, 80], [72, 60]], 0, 2.0);
+  // Fernwärmetrasse
+  for (let x = -262; x <= -6; x += 8) { box(g, 0.4, 5.5, 0.4, M.steelDark, x, 0, 124); box(g, 0.4, 0.4, 3, M.steelDark, x, 5.5, 124); }
+  box(g, 0.3, 4.6, 0.3, M.steelDark, -6, 0, 71);
+  for (const dz of [-0.7, 0.7]) { cyl(g, 0.4, 0.4, 256, M.insul, -134, 0, 124 + dz, 12).rotation.z = Math.PI / 2; beam(g, [-6, 6.3, 72 + dz], [-6, 6.3, 124 + dz], 0.8, 0.8, M.insul); }
+  g.traverse(o => { if (o.isMesh && o.geometry.type === 'CylinderGeometry' && o.rotation.z && Math.abs(o.position.x + 134) < 1) o.position.y = 6.3; });
+  reg('ez', g, { name: 'Energiezentrale (Turbine, KWK)', kks: 'Turbine · Luftkondensator · Umspannwerk · Fernwärme',
+    text: 'Der Frischdampf beider Kessel treibt eine Entnahme-Kondensationsturbine. Ausgekoppelte Wärme geht über die Trasse ins Fernwärmenetz, der Restdampf wird im luftgekühlten Kondensator niedergeschlagen; der Strom wird über das Umspannwerk eingespeist.',
+    rows: [['Wirkungsgrade', 'η_el ≈ 0,13 · η_th ≈ 0,30'], ['Strom', '~95.000 MWh/a (Referenz Asdonkshof)'], ['Fernwärme', '~92.000 MWh/a'], ['Eigenbedarf', '≈ 16 % der Bruttoerzeugung']] });
+}
+// Schlackeaufbereitung
+{
+  const g = new THREE.Group();
+  building(g, -10, -110, 70, 30, 15, { wall: M.sheetDark, gable: 3, doors: [{ s: 'n', off: -20, w: 7, h: 7 }, { s: 'n', off: 20, w: 7, h: 7 }] });
+  beam(g, [-10, 8, -35], [-10, 16, -95], 2.4, 2.2, M.sheet);
+  for (let i = 0; i <= 4; i++) box(g, 0.6, 4, 34, M.concrete, 30 + i * 16, 0, -110);
+  box(g, 64, 4, 0.6, M.concrete, 62, 0, -127);
+  for (let i = 0; i < 4; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(7.5, 6 - i * 0.6, 16), M.slag); c.position.set(38 + i * 16, (6 - i * 0.6) / 2, -112); c.scale.z = 1.6; c.castShadow = c.receiveShadow = true; g.add(c); }
+  box(g, 3, 2.4, 6, M.yellowM, 50, 0, -94); box(g, 2.4, 1.2, 3.4, M.window, 50, 2.4, -95);
+  reg('schlacke', g, { name: 'Schlackeaufbereitung', kks: 'Schlackebunker · Metallabscheidung · Alterung',
+    text: 'Die Rostschlacke wird über den Entschlacker ausgetragen, gealtert, gesiebt und von Eisen- und NE-Metallen befreit. Die mineralische Fraktion wird verwertet oder auf der Deponie eingebaut.',
+    rows: [['Menge', '≈ 27 % der MVA-Aufgabe'], ['Aufbereitung', 'Magnet- und Wirbelstromabscheidung (Fe/NE)'], ['Verbleib', 'Einbau Deponie DK II / Verwertung']] });
+}
+// Klärschlammtrocknung
+{
+  const g = new THREE.Group();
+  building(g, -150, -80, 36, 20, 16, { wall: M.sheet, band: [12], doors: [{ s: 'w', w: 5, h: 5 }] });
+  for (const z of [-71, -89]) { for (const [dx, dz] of [[-2, -2], [2, -2], [2, 2], [-2, 2]]) box(g, 0.35, 6, 0.35, M.steelDark, -176 + dx, 0, z + dz); cyl(g, 2.7, 2.7, 12, M.silo, -176, 6, z, 24); }
+  cyl(g, 0.7, 0.7, 26, M.steel, -136, 0, -72, 16);
+  beam(g, [-132, 13, -78], [-56, 30, -30], 2.2, 2.0, M.sheet);
+  reg('kst', g, { name: 'Klärschlammtrocknung', kks: 'Bandtrockner · Silos',
+    text: 'Entwässerter Klärschlamm (u. a. von der KA Schwierbach) wird mit Abwärme der MVA getrocknet und anschließend im Müllbunker mitverbrannt.',
+    rows: [['Eingang', 'entwässert, ~25 % TS (Standard 40 t/d)'], ['Ausgang', 'getrocknet, ~65 % TS'], ['Verbleib', 'Mitverbrennung in der MVA (Hu ≈ 8 MJ/kg)']],
+    link: ['https://mein-hsbk.github.io/Klaeranlage_PLS/3d/', 'KA Schwierbach in 3D ▸'] });
+}
+
+// ------------------------------------------------------------------ VERGÄRUNG / KOMPOST
+{
+  const g = new THREE.Group();
+  building(g, 0, 190, 34, 22, 10, { wall: M.sheetGreen, doors: [{ s: 'n', off: -8, w: 5, h: 5 }, { s: 'n', off: 8, w: 5, h: 5 }] });
+  for (const x of [40, 70]) {
+    cyl(g, 11, 11, 9, M.concrete, x, 0, 190, 48);
+    const d = new THREE.Mesh(new THREE.SphereGeometry(11, 40, 12, 0, Math.PI * 2, 0, Math.PI / 2), M.membrane); d.scale.y = 0.38; d.position.set(x, 9, 190); d.castShadow = true; g.add(d);
+  }
+  box(g, 12, 3.6, 3.4, M.sheetGreen, 100, 0, 178); cyl(g, 0.3, 0.3, 8, M.steel, 105, 0, 176.8, 12);
+  cyl(g, 0.8, 0.8, 7, M.steel, 98, 0, 204, 16);
+  reg('verg', g, { name: 'Vergärung', kks: 'Annahme · Fermenter · BHKW',
+    text: 'Anaerobe Vergärung des Bioabfalls in zwei beheizten Fermentern – verfahrenstechnisch verwandt mit dem Faulturm der Kläranlage. Das Biogas wird im BHKW verstromt, der Gärrest kompostiert.',
+    rows: [['Input', 'Bioabfall (Standard 90 t/d)'], ['Biogas', '~100 m³/t, CH₄ ~58 %'], ['Verwertung', 'BHKW (η_el ≈ 40 %)'], ['Gärrest', '→ Kompostierung']] });
+}
+const turners = [];
+{
+  const g = new THREE.Group();
+  const s = new THREE.Shape(); s.moveTo(-2.6, 0); s.lineTo(2.6, 0); s.lineTo(1.0, 2.4); s.lineTo(-1.0, 2.4); s.closePath();
+  const wg = new THREE.ExtrudeGeometry(s, { depth: 70, bevelEnabled: false }); wg.rotateY(Math.PI / 2); wg.translate(-35, 0, 0);
+  box(g, 82, 0.1, 54, M.concreteDark, 152, 0, 196, 0, false);
+  for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(wg, M.compost); m.position.set(152, 0.1, 174 + i * 8.6); m.castShadow = m.receiveShadow = true; g.add(m); }
+  const t = new THREE.Group();
+  box(t, 1.0, 3.6, 7, M.yellowM, -1.2, 0, 0); box(t, 1.0, 3.6, 7, M.yellowM, 1.2, 0, 0); box(t, 3.4, 1.0, 7, M.yellowM, 0, 3.4, 0); box(t, 2.2, 1.6, 2, M.window, 0, 4.4, -2.4);
+  t.position.set(152, 0, 174 + 2 * 8.6); g.add(t); turners.push({ obj: t, a: 120, b: 184, v: 1.2 });
+  reg('kompost', g, { name: 'Kompostierung', kks: 'Mietenkompostierung · Umsetzer',
+    text: 'Der Gärrest wird in Dreiecksmieten nachgerottet; ein Umsetzer belüftet und homogenisiert die Mieten regelmäßig, bis der gewünschte Rottegrad erreicht ist.',
+    rows: [['Input', 'Gärrest aus der Vergärung'], ['Produkt', 'Kompost (≈ 40 % der Bioabfallmenge)'], ['Prüfung', 'Rottegrad, Hygienisierung']] });
+}
+
+// ------------------------------------------------------------------ DEPONIE + SICKERWASSER
+const comp = [];
+{
+  const g = new THREE.Group();
+  // Sickerwasserkontrollschächte am Böschungsfuß
+  const kom = new THREE.Group();
+  box(kom, 3, 3.2, 6, M.yellowM, 0, 0.6, 0); box(kom, 2.6, 1.8, 2.4, M.window, 0, 3.8, -1.2);
+  for (const z of [-2.2, 2.2]) for (const dx of [-1.6, 1.6]) { const w = cyl(kom, 0.9, 0.9, 0.9, M.steelDark, dx, 0, z, 12); w.rotation.z = Math.PI / 2; w.position.y = 0.9; }
+  g.add(kom); comp.push({ obj: kom, a: [620, -180], b: [700, -80], s: 0, v: 1.5 });
+  // Pegel/Gasmessstellen auf rekultivierten Flächen (Kontrollpegel)
+  for (let k = 0; k < 14; k++) { const x = 300 + (k * 97) % 460, z = -250 + (k * 151) % 500; if (activeArea(x, z) || depD(x, z) < 20) continue; ib('pegel', cylGeo, M.white, x, H(x, z) + 0.6, z, 0.25, 1.2, 0.25, 0, false); }
+  const anchorY = 48;
+  reg('deponie', g, { name: 'Deponie (DK II)', kks: 'Deponiekörper · 41 ha', center: new THREE.Vector3(540, 0, 0), anchor: new THREE.Vector3(560, anchorY, 40), radius: 330,
+    text: 'Deponie der Klasse II mit Basisabdichtung und Basisdränage. Im offenen Einbauabschnitt werden Schlacke und mineralische Abfälle lagenweise eingebaut und verdichtet; verfüllte Abschnitte sind abgedeckt und rekultiviert.',
+    rows: [['Fläche', '41 ha'], ['Einbau', 'Schlacke, Bauschutt, mineralische Abfälle'], ['Profil', 'Böschung ≈ 1:3 mit Bermen, Kuppe ≈ 40 m *'], ['Sickerwasser', 'Basisdränage → SWS-1']], note: true });
+}
+{
+  const g = new THREE.Group();
+  cyl(g, 1.8, 1.8, 0.6, M.concrete, 206, 0, 262, 24); cyl(g, 0.8, 0.8, 0.1, M.steelDark, 206, 0.6, 262, 16);
+  box(g, 1.2, 1.8, 0.6, M.sheetGreen, 209, 0, 259);
+  box(g, 9, 0.5, 6, M.concrete, 176, 0, 262);
+  for (const x of [173.5, 178.5]) box(g, 1.4, 0.15, 1.4, M.steelDark, x, 0.5, 262);
+  building(g, 176, 255.5, 4, 2.6, 2.8, { wall: M.plaster, doors: [{ s: 'n' }] });
+  building(g, 140, 268, 30, 14, 8, { wall: M.sheet, band: [5.5], doors: [{ s: 'n', off: -6, w: 3.5, h: 4 }] });
+  for (const z of [290, 306]) cyl(g, 6.5, 6.5, 7, M.concrete, 118, 0, z, 40);
+  for (const z of [290, 306]) { const w = new THREE.Mesh(new THREE.CircleGeometry(6.2, 40).rotateX(-Math.PI / 2), std(0x6b5a3e, { r: 0.2 })); w.position.set(118, 6.6, z); g.add(w); }
+  reg('sw', g, { name: 'Sickerwasserfassung + SWBA', kks: 'SWS-1 · SB-1 / SWP-01 · SWBA', anchor: new THREE.Vector3(176, 10, 262), center: new THREE.Vector3(165, 0, 275), radius: 45,
+    text: 'Das Sickerwasser der Einbauabschnitte läuft über die Basisdränage im Freispiegel zum Sickerwasserschacht SWS-1 und wird von dort über eine Druckleitung in das unterirdische Sammelbecken SB-1 gefördert. Das Pumpwerk SWP-01 beschickt die Sickerwasserbehandlungsanlage; das gereinigte Wasser geht zur KA Schwierbach.',
+    rows: [['SWS-1', 'Pumpensumpf am Tiefpunkt der Basisdränage'], ['Druckleitung', 'DN 300, v = 0,60–1,80 m/s'], ['SB-1 / SWP-01', 'Stahlbeton, unterirdisch, Bestand 1987, Abdeckung 2004'], ['Förderpumpen', '2 × Tauchmotor-KP (1 Betrieb, 1 Reserve)'], ['Weiterleitung', 'SWBA → Kanal → KA Schwierbach']],
+    link: ['https://mein-hsbk.github.io/Klaeranlage_PLS/3d/', 'KA Schwierbach in 3D ▸'] });
+}
+
+// ------------------------------------------------------------------ Fahrzeuge
+function makeTruck(colBody, tipper) {
+  const t = new THREE.Group();
+  box(t, 2.6, 2.6, 2.5, M.white, 3.0, 0.6, 0); box(t, 0.1, 1.0, 2.2, M.window, 4.32, 2.0, 0, 0, false);
+  if (tipper) { box(t, 5.6, 1.8, 2.5, colBody, -1.2, 1.0, 0); }
+  else { const c = cyl(t, 1.25, 1.25, 6, colBody, -1.3, 0, 0, 16); c.rotation.z = Math.PI / 2; c.position.y = 2.3; box(t, 0.4, 2.6, 2.5, colBody, -4.4, 1.0, 0); }
+  box(t, 8.8, 0.4, 2.2, M.steelDark, -0.6, 0.6, 0);
+  for (const x of [3.0, -1.6, -3.0]) for (const z of [-1.1, 1.1]) { const w = cyl(t, 0.55, 0.55, 0.4, M.rubber, x, 0, z, 12); w.rotation.x = Math.PI / 2; w.position.y = 0.55; }
+  scene.add(t); return t;
+}
+function pathOf(pts, drape) {
+  const P = []; for (let i = 0; i < pts.length - 1; i++) { const [x0, z0] = pts[i], [x1, z1] = pts[i + 1], n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 2); for (let k = 0; k < n; k++) P.push([x0 + (x1 - x0) * k / n, z0 + (z1 - z0) * k / n]); }
+  P.push(pts[pts.length - 1]);
+  const pp = P.map(([x, z]) => new THREE.Vector3(x, drape ? Math.max(0, H(x, z)) + 0.25 : 0.06, z));
+  const cum = [0]; for (let i = 1; i < pp.length; i++) cum.push(cum[i - 1] + pp[i].distanceTo(pp[i - 1]));
+  return { pp, cum, L: cum[cum.length - 1] };
+}
+function posOn(path, s, out) {
+  let i = 1; while (i < path.cum.length - 1 && path.cum[i] < s) i++;
+  const a = path.pp[i - 1], b = path.pp[i], t = (s - path.cum[i - 1]) / Math.max(1e-6, path.cum[i] - path.cum[i - 1]);
+  out.pos.lerpVectors(a, b, Math.min(1, Math.max(0, t))); out.dir.subVectors(b, a).normalize();
+}
+const P_MUELL = pathOf([[-430, 152], [-235, 152], [-106, 152], [-106, 10], [-96, 10]], false);
+const P_KIPPER = pathOf([[30, -96], [30, -90], [100, -91], [196, -91], [196, -146], [196, 150], [196, 262], ...RAMP.slice(1)], true);
+const vehicles = [
+  { obj: makeTruck(M.orange, false), path: P_MUELL, s: 0, v: 8, wait: 0 },
+  { obj: makeTruck(M.orange, false), path: P_MUELL, s: 280, v: 8, wait: 0 },
+  { obj: makeTruck(M.sheetGreen, false), path: P_MUELL, s: 520, v: 8, wait: 0 },
+  { obj: makeTruck(M.yellowM, true), path: P_KIPPER, s: 0, v: 9, wait: 0 },
+  { obj: makeTruck(M.yellowM, true), path: P_KIPPER, s: 900, v: 9, wait: 0 }
+];
+vehicles.forEach(v => { v.dirSign = 1; });
+
+// Bäume
+{
+  const rnd = (() => { let s = 11; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+  const T = [];
+  for (let n = 0; n < 6000 && T.length < 520; n++) {
+    const x = -550 + rnd() * 1700, z = -620 + rnd() * 1240;
+    if (x > FENCE.x0 - 8 && x < FENCE.x1 + 8 && z > FENCE.z0 - 8 && z < FENCE.z1 + 8) continue;
+    if (Math.abs(z - 150) < 10 && x < FENCE.x0) continue;
+    const field = x < -330 || z > 420;
+    if (field && rnd() > 0.05) continue;
+    T.push([x, z]);
+  }
+  for (let x = -250; x < 880; x += 9) for (const z of [-360 - rnd() * 10, 360 + rnd() * 10]) if (rnd() > 0.3) T.push([x + rnd() * 4, z]);
+  const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ roughness: .9, flatShading: true }), T.length);
+  const trunk = new THREE.InstancedMesh(cylGeo, M.trunk, T.length), o = new THREE.Object3D(), c = new THREE.Color();
+  T.forEach(([x, z], i) => {
+    const y0 = H(x, z), conifer = rnd() < 0.15, h = 3 + rnd() * 3, r = conifer ? 2 + rnd() : 2.6 + rnd() * 2.6;
+    o.position.set(x, y0 + h / 2, z); o.scale.set(0.5, h, 0.5); o.rotation.set(0, 0, 0); o.updateMatrix(); trunk.setMatrixAt(i, o.matrix);
+    o.position.set(x, y0 + h + r * (conifer ? 1.6 : 0.8), z); o.scale.set(r, r * (conifer ? 2.4 : 1.25), r); o.rotation.y = rnd() * 6; o.updateMatrix(); crown.setMatrixAt(i, o.matrix);
+    crown.setColorAt(i, c.setHSL(conifer ? 0.36 : 0.22 + rnd() * 0.08, 0.45, 0.24 + rnd() * 0.1));
+  });
+  crown.castShadow = trunk.castShadow = true; scene.add(crown, trunk);
+}
+flushInst();
+
+// Abgasschwaden
+const plumeTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'); const gr = x.createRadialGradient(32, 32, 2, 32, 32, 31); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); })();
+const plume = Array.from({ length: 36 }, (_, i) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: plumeTex, transparent: true, depthWrite: false, opacity: 0 })); scene.add(s); return { s, age: i / 36 * 18 }; });
+
+// ------------------------------------------------------------------ Stoffströme (Overlay)
+const FLOW = {
+  in: { n: 'Abfall (Anlieferung)', c: 0x5b9bd5, y: 6, p: [[[-240, 150], [-106, 150], [-106, 0], [-60, 0]], [[-106, 120], [-140, 120], [-140, 110]], [[-140, 90], [-140, 60], [-106, 60]]] },
+  ks: { n: 'Klärschlamm', c: 0xa29bfe, y: 9, p: [[[-240, 150], [-180, 150], [-180, -60], [-160, -70]], [[-132, -78], [-56, -30]]] },
+  bio: { n: 'Bioabfall / Gärrest', c: 0x00b894, y: 7, p: [[[-240, 150], [0, 150], [0, 180]], [[17, 190], [40, 190], [70, 190]], [[81, 190], [112, 190]]] },
+  rg: { n: 'Rauchgas', c: 0xdfe6e9, y: 32, p: [[[-12, -5], [10, -5], [10, -19], [126, -19]], [[10, -5], [10, 9], [126, 9]], [[126, -19], [130, -5]], [[126, 9], [130, -5]]] },
+  da: { n: 'Dampf / Strom / Fernwärme', c: 0xe17055, y: 26, p: [[[-12, 20], [-12, 60], [40, 70], [85, 70]], [[-15, 71], [-15, 124], [-262, 124]]] },
+  sl: { n: 'Schlacke', c: 0xb2bec3, y: 10, p: [[[-10, -30], [-10, -110], [62, -110]], [[62, -110], [196, -91], [196, 262], [300, 170, 30], [560, -40, 40], [660, -140, 40]]] },
+  bg: { n: 'Biogas', c: 0xf1c40f, y: 14, p: [[[55, 190], [100, 178]]] },
+  sw: { n: 'Sickerwasser', c: 0x74b9ff, y: 4, p: [[[230, 262], [206, 262], [176, 262], [140, 268], [-50, 268], [-268, 300]]] }
+};
+const flowMats = [], flowGroup = new THREE.Group(); flowGroup.visible = false; scene.add(flowGroup);
+for (const k in FLOW) {
+  const f = FLOW[k];
+  for (const line of f.p) {
+    const path = new THREE.CurvePath(); let L = 0;
+    for (let i = 0; i < line.length - 1; i++) {
+      const a = new THREE.Vector3(line[i][0], line[i][2] ?? f.y, line[i][1]), b = new THREE.Vector3(line[i + 1][0], line[i + 1][2] ?? f.y, line[i + 1][1]);
+      path.add(new THREE.LineCurve3(a, b)); L += a.distanceTo(b);
+    }
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uC: { value: new THREE.Color(f.c) }, uT: { value: 0 }, uL: { value: L } }, transparent: true,
+      vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+      fragmentShader: 'uniform vec3 uC; uniform float uT; uniform float uL; varying vec2 vUv; void main(){ float s=fract(vUv.x*uL/14.0-uT*0.6); float on=step(s,0.6); gl_FragColor=vec4(uC*(0.75+0.45*on),0.55+0.45*on);}'
+    });
+    flowMats.push(mat); flowGroup.add(new THREE.Mesh(new THREE.TubeGeometry(path, Math.max(8, Math.ceil(L / 3)), 1.1, 8, false), mat));
+  }
+}
+const legend = document.getElementById('legend');
+legend.innerHTML = Object.values(FLOW).map(f => `<div><i style="background:#${new THREE.Color(f.c).getHexString()}"></i>${f.n}</div>`).join('') + '<div style="color:#8395a7;margin-top:3px">schematisch · Sickerwasser → KA Schwierbach</div>';
+
+// ------------------------------------------------------------------ UI
+const TOUR = ['waage', 'sortier', 'bunker', 'kessel', 'rgr', 'kamin', 'ez', 'schlacke', 'kst', 'verg', 'kompost', 'deponie', 'sw', 'verw'];
+const SHORT = { waage: 'Waage', sortier: 'Sortierung', bunker: 'Bunker', kessel: 'MVA', rgr: 'RGR', kamin: 'Kamin', ez: 'Energiezentrale', schlacke: 'Schlacke', kst: 'KS-Trocknung', verg: 'Vergärung', kompost: 'Kompost', deponie: 'Deponie DK II', sw: 'SWS-1/SB-1', verw: 'Verwaltung' };
+const labelBox = document.getElementById('labels');
+for (const id of TOUR) { const el = document.createElement('div'); el.className = 'lbl'; el.textContent = SHORT[id]; el.addEventListener('click', e => { e.stopPropagation(); select(id, true); }); labelBox.appendChild(el); comps[id].el = el; }
+const marker = new THREE.Mesh(new THREE.RingGeometry(0.95, 1, 96).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffd54a, transparent: true, depthWrite: false }));
+marker.visible = false; scene.add(marker);
+const info = document.getElementById('info'), infoBody = document.getElementById('infoBody'), tname = document.getElementById('tname');
+let tourIdx = -1, auto = null, fly = null;
+function select(id, doFly) {
+  const c = comps[id];
+  for (const k in comps) comps[k].el.classList.toggle('sel', k === id);
+  marker.visible = id !== 'deponie'; marker.position.set(c.center.x, 0.3, c.center.z); marker.scale.setScalar(c.radius + 5);
+  infoBody.innerHTML = `<h2>${c.name}</h2><div class="kks">${c.kks}</div><p>${c.text}</p><table>${c.rows.map(r => `<tr><td class="k">${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>` +
+    (c.link ? `<p style="margin-top:8px"><a href="${c.link[0]}" target="_blank" rel="noopener">${c.link[1]}</a></p>` : '') +
+    (c.note ? '<div class="note">* Abmessung für die 3D-Ansicht angenommen (in der Simulation nicht festgelegt).</div>' : '');
+  info.style.display = 'block'; layout();
+  tourIdx = TOUR.indexOf(id); tname.innerHTML = `${c.name} <small>${tourIdx + 1}/${TOUR.length}</small>`;
+  if (doFly) {
+    const d = Math.min(950, Math.max(70, c.radius * 2.4 + Math.min(c.height, 90) * 1.3 + 30)), dir = new THREE.Vector3(-0.35, 0.72, 0.9).normalize();
+    const tgt = c.center.clone(); tgt.y = id === 'deponie' ? 20 : 0; tgt.z += d * 0.2;
+    flyTo(tgt, tgt.clone().addScaledVector(dir, d));
+  }
+}
+function deselect() { marker.visible = false; info.style.display = 'none'; for (const k in comps) comps[k].el.classList.remove('sel'); layout(); }
+function flyTo(target, pos, dur = 1.8) { fly = { t0: performance.now(), dur: dur * 1000, ft: controls.target.clone(), fp: camera.position.clone(), tt: target, tp: pos }; }
+const portrait = () => innerWidth / innerHeight < 0.8;
+const homePos = () => portrait() ? new THREE.Vector3(-900, 1150, 330) : new THREE.Vector3(-300, 540, 720);
+const homeTgt = () => portrait() ? new THREE.Vector3(300, 0, 0) : new THREE.Vector3(260, 0, 20);
+const HOME = () => flyTo(homeTgt(), homePos());
+function stopAuto() { if (auto) { clearInterval(auto); auto = null; const b = document.getElementById('bAuto'); b.classList.remove('on'); b.textContent = '▶ Auto'; } }
+document.getElementById('bNext').onclick = () => { stopAuto(); select(TOUR[(tourIdx + 1) % TOUR.length], true); };
+document.getElementById('bPrev').onclick = () => { stopAuto(); select(TOUR[(tourIdx - 1 + TOUR.length) % TOUR.length], true); };
+tname.onclick = () => { if (tourIdx < 0) select(TOUR[0], true); };
+document.getElementById('bAuto').onclick = e => {
+  if (auto) return stopAuto();
+  e.target.classList.add('on'); e.target.textContent = '❚❚ Pause';
+  select(TOUR[(tourIdx + 1) % TOUR.length], true);
+  auto = setInterval(() => select(TOUR[(tourIdx + 1) % TOUR.length], true), 7000);
+};
+document.getElementById('bHome').onclick = () => { stopAuto(); deselect(); tourIdx = -1; tname.textContent = 'Rundgang starten ›'; HOME(); };
+document.getElementById('close').onclick = deselect;
+let showLbl = true;
+document.getElementById('bLbl').onclick = e => { showLbl = !showLbl; e.target.classList.toggle('on', showLbl); labelBox.style.display = showLbl ? '' : 'none'; };
+document.getElementById('bFlow').onclick = e => { flowGroup.visible = !flowGroup.visible; e.target.classList.toggle('on', flowGroup.visible); legend.style.display = flowGroup.visible ? 'block' : 'none'; layout(); };
+let traffic = true;
+document.getElementById('bTraffic').onclick = e => { traffic = !traffic; e.target.classList.toggle('on', traffic); vehicles.forEach(v => v.obj.visible = traffic); };
+controls.addEventListener('start', () => { fly = null; stopAuto(); });
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
+canvas.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) return;
+  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
+  const h = ray.intersectObjects(pickables, false)[0];
+  if (h) select(h.object.userData.comp, false); else deselect();
+});
+function layout() {
+  const bh = document.getElementById('bottom').offsetHeight;
+  info.style.bottom = (bh + 8) + 'px';
+  legend.style.bottom = (bh + 8 + (info.style.display === 'block' ? info.offsetHeight + 8 : 0)) + 'px';
+}
+function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); layout(); }
+addEventListener('resize', resize); resize();
+camera.position.copy(homePos()); controls.target.copy(homeTgt());
+
+// ------------------------------------------------------------------ Animation
+const clock = new THREE.Clock(), pv = new THREE.Vector3(), tmp = { pos: new THREE.Vector3(), dir: new THREE.Vector3() };
+let elapsed = 0;
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.1); elapsed += dt;
+  for (const sp of spinners) sp.obj.rotation.y += sp.w * dt;
+  for (const t of turners) { t.s = (t.s ?? 0) + t.v * dt; const L = t.b - t.a, ph = t.s % (2 * L); t.obj.position.x = t.a + (ph < L ? ph : 2 * L - ph); }
+  for (const c of comp) {
+    c.s += c.v * dt; const L = Math.hypot(c.b[0] - c.a[0], c.b[1] - c.a[1]), ph = c.s % (2 * L), u = (ph < L ? ph : 2 * L - ph) / L;
+    const x = c.a[0] + (c.b[0] - c.a[0]) * u, z = c.a[1] + (c.b[1] - c.a[1]) * u;
+    c.obj.position.set(x, H(x, z), z); c.obj.rotation.y = -Math.atan2(c.b[1] - c.a[1], c.b[0] - c.a[0]);
+  }
+  if (traffic) for (const v of vehicles) {
+    if (v.wait > 0) { v.wait -= dt; continue; }
+    v.s += v.v * dt * v.dirSign;
+    if (v.s >= v.path.L) { v.s = v.path.L; v.dirSign = -1; v.wait = 6; }
+    if (v.s <= 0) { v.s = 0; v.dirSign = 1; v.wait = 4; }
+    posOn(v.path, v.s, tmp); v.obj.position.copy(tmp.pos);
+    const d = tmp.dir.clone().multiplyScalar(v.dirSign); v.obj.rotation.set(0, -Math.atan2(d.z, d.x), 0);
+  }
+  for (const p of plume) {
+    p.age += dt; if (p.age > 18) p.age -= 18;
+    const a = p.age / 18; p.s.position.set(KAMIN.x + p.age * 2.2, KAMIN.h + 1 + p.age * 1.6, KAMIN.z + p.age * 0.6);
+    p.s.scale.setScalar(4 + a * 26); p.s.material.opacity = 0.42 * (1 - a) * Math.min(1, p.age * 2);
+  }
+  for (const m of flowMats) m.uniforms.uT.value = elapsed;
+  if (marker.visible) marker.material.opacity = 0.55 + 0.45 * Math.sin(elapsed * 4);
+  if (fly) {
+    const t = Math.min(1, (performance.now() - fly.t0) / fly.dur), e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    controls.target.lerpVectors(fly.ft, fly.tt, e); camera.position.lerpVectors(fly.fp, fly.tp, e); if (t >= 1) fly = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  if (showLbl) for (const id of TOUR) {
+    const c = comps[id]; pv.copy(c.anchor).project(camera);
+    if (pv.z > 1 || Math.abs(pv.x) > 1.05 || Math.abs(pv.y) > 1.05) { c.el.style.display = 'none'; continue; }
+    c.el.style.display = ''; c.el.style.transform = `translate(${(pv.x * .5 + .5) * innerWidth}px,${(-pv.y * .5 + .5) * innerHeight}px) translate(-50%,-100%)`;
+  }
+  requestAnimationFrame(tick);
+}
+window.__ka3d = { THREE, scene, renderer, camera, controls };
+document.getElementById('load').remove();
+tick();
+</script>
+</body>
+</html>
