@@ -691,6 +691,17 @@ def _(GRUNDRISS_URL, dep_armaturen, MVA_URL, S_PRESETS, S_STAGES, bio_t, heizwer
 
     # ---------- Übersicht ----------
     overview = mo.Html(f'''<div class="pls">
+      <div class="pls-c" style="padding:0;overflow:hidden;border-color:#0984e3">
+        <a href="./3d/" target="_blank" rel="noopener" style="display:block;position:relative;text-decoration:none;color:#ffffff">
+          <img src="./3d/aez_iso.jpg" alt="Isometrische Ansicht des Abfall- und Energiezentrums Schwierbach"
+               style="display:block;width:100%;height:auto;max-height:360px;object-fit:cover">
+          <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 16px;background:linear-gradient(rgba(22,33,62,0),rgba(22,33,62,0.94))">
+            <div style="font-size:1.05em;font-weight:bold">🧭 Betriebsgelände in 3D</div>
+            <div style="font-size:0.85em;color:#dfe6e9;margin:2px 0 8px">MVA, Sortierung, Vergärung, Deponie und Sickerwasserfassung – frei dreh- und zoombar, mit Rundgang</div>
+            <span style="display:inline-block;padding:7px 18px;background:#0984e3;color:#ffffff;border-radius:4px;font-weight:bold;font-size:0.9em">▶ 3D-Ansicht öffnen</span>
+          </div>
+        </a>
+      </div>
       <div class="pls-c" style="overflow-x:auto">
         <h3>Verbundschema – Stoff- und Energieströme (Betriebspunkt aus Leitstand-Vorgaben)</h3>
         {schema}
