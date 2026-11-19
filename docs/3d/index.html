@@ -35,6 +35,7 @@
   #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
   .lbl{position:absolute;left:0;top:0;background:#16213ed9;border:1px solid #2d4a7a;color:#fff;
        font-size:10.5px;padding:2px 5px;border-radius:4px;white-space:nowrap;pointer-events:auto;cursor:pointer;font-family:monospace}
+  .tag{position:absolute;left:0;top:0;background:#ffffffd9;color:#16213e;font-size:9.5px;padding:1px 4px;border-radius:3px;white-space:nowrap;pointer-events:none;font-family:Arial,Helvetica,sans-serif}
   .lbl.sel{background:#ffd54a;color:#16213e;border-color:#ffd54a;font-weight:bold}
   #legend{position:fixed;right:8px;display:none;background:#16213ee6;border:1px solid #2d4a7a;border-radius:8px;padding:6px 8px;font-size:11px;line-height:1.55}
   #legend i{display:inline-block;width:16px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
@@ -74,6 +75,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // ------------------------------------------------------------------ Renderer / Szene
 const canvas = document.getElementById('c');
@@ -500,6 +502,238 @@ const comp = [];
     link: ['https://mein-hsbk.github.io/Klaeranlage_PLS/3d/', 'KA Schwierbach in 3D ▸'] });
 }
 
+// ------------------------------------------------------------------ DEPONIEGASERFASSUNG
+const INT = { subs: [], pick: [], low: [], roof: null, eq: null, tags: [] };
+const spinGV = [];
+{
+  const g = new THREE.Group();
+  const peM = std(0xe2b53a, { r: 0.55 }), sleeper = M.concreteDark;
+  const tubeOf = (pts, r) => new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.1), Math.max(4, pts.length * 2), r, 6, false);
+  const drapePts = (x0, z0, x1, z1, lift, endY) => {
+    const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(2, Math.ceil(L / 5)), P = [];
+    for (let k = 0; k <= n; k++) { const x = x0 + (x1 - x0) * k / n, z = z0 + (z1 - z0) * k / n; P.push(new THREE.Vector3(x, (k === n && endY !== undefined) ? endY : Math.max(0, H(x, z)) + lift, z)); }
+    return P;
+  };
+  // Ringleitung (Hauptsammler) am Böschungsfuß, außerhalb des Randgrabens
+  const RO = 13, rc = 540, hx = 250, R = DEP.r + RO, ring = [];
+  for (const [a0, sx, sz] of [[0, 1, 1], [Math.PI / 2, -1, 1], [Math.PI, -1, -1], [Math.PI * 1.5, 1, -1]])
+    for (let k = 0; k <= 12; k++) { const a = a0 + k / 12 * Math.PI / 2; ring.push([rc + sx * hx + R * Math.cos(a), sz * hx + R * Math.sin(a)]); }
+  ring.push(ring[0]);
+  const ringSeg = [];
+  const skip = (x, z) => Math.hypot(x - 205, z - 256) < 22;       // Querung Rampe / SWS-1 erdverlegt
+  for (let i = 0; i < ring.length - 1; i++) {
+    const [x0, z0] = ring[i], [x1, z1] = ring[i + 1], L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.ceil(L / 6));
+    for (let k = 0; k < n; k++) {
+      const xa = x0 + (x1 - x0) * k / n, za = z0 + (z1 - z0) * k / n, xb = x0 + (x1 - x0) * (k + 1) / n, zb = z0 + (z1 - z0) * (k + 1) / n;
+      if (skip(xa, za) || skip(xb, zb)) continue;
+      ringSeg.push(tubeOf([new THREE.Vector3(xa, 0.6, za), new THREE.Vector3(xb, 0.6, zb)], 0.2));
+      ib('slp', boxGeo, sleeper, xa, 0.2, za, 0.5, 0.4, 0.5, 0, false);
+    }
+  }
+  const ringMesh = new THREE.Mesh(mergeGeometries(ringSeg), peM); ringMesh.castShadow = true; g.add(ringMesh);
+  // Gassammelstationen
+  const ST = [['GS 1', 207, -150, Math.PI / 2], ['GS 2', 207, 110, Math.PI / 2], ['GS 3', 380, -333, 0], ['GS 4', 640, -333, 0]];
+  const stM = std(0x7d868c, { r: 0.5, m: 0.4 });
+  for (const [nm, x, z, ry] of ST) {
+    const st = new THREE.Group(); st.position.set(x, 0, z); st.rotation.y = ry; g.add(st);
+    box(st, 8, 0.2, 4.2, M.concrete, 0, 0, 0);
+    const mf = cyl(st, 0.22, 0.22, 6.4, stM, 0, 0, 0, 12); mf.rotation.z = Math.PI / 2; mf.position.y = 1.0;
+    for (let k = 0; k < 10; k++) {
+      const xx = -2.8 + k * 0.62;
+      cyl(st, 0.07, 0.07, 1.0, peM, xx, 0.2, -0.9, 8).rotation.x = Math.PI / 2;
+      st.children[st.children.length - 1].position.set(xx, 0.9, -0.95);
+      box(st, 0.14, 0.18, 0.14, M.steelDark, xx, 0.8, -0.45, 0, false);
+      const hw = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.02, 5, 14), M.steelDark); hw.rotation.x = Math.PI / 2; hw.position.set(xx, 1.25, -0.45); st.add(hw);
+      box(st, 0.03, 0.25, 0.03, M.steel, xx, 0.98, -0.45, 0, false);
+    }
+    for (const [dx, dz] of [[-3.7, -1.9], [3.7, -1.9], [3.7, 1.9], [-3.7, 1.9]]) box(st, 0.12, 2.8, 0.12, M.galv, dx, 0.2, dz, 0, false);
+    box(st, 8.2, 0.08, 4.4, M.sheet, 0, 3.0, 0);
+    cyl(st, 0.6, 0.6, 0.35, M.concrete, 2.6, 0.2, 1.2, 16); cyl(st, 0.45, 0.45, 0.05, M.steelDark, 2.6, 0.55, 1.2, 16);
+    box(st, 0.6, 1.2, 0.35, std(0xd9c27a), -3.2, 0.2, 1.4, 0, false);
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const c2 = cv.getContext('2d');
+    c2.fillStyle = '#f4f4f0'; c2.fillRect(0, 0, 256, 64); c2.fillStyle = '#2b3a4a'; c2.font = 'bold 30px Arial'; c2.textAlign = 'center'; c2.textBaseline = 'middle'; c2.fillText('Gassammel' + 'st. ' + nm.slice(3), 128, 34);
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+    const sg = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshStandardMaterial({ map: t })); sg.position.set(-3.2, 1.65, 1.59); st.add(sg);
+  }
+  // Gasbrunnen auf den rekultivierten Altabschnitten + Anschlussleitungen
+  const WELLS = [], lines = [];
+  for (let gx = 0; gx < 14; gx++) for (let gz = 0; gz < 14; gz++) {
+    const x = DEP.x0 + 35 + gx * 48 + (gz % 2) * 24, z = DEP.z0 + 35 + gz * 48;
+    const d = depD(x, z); if (d < 14 || activeArea(x - 30, z - 30) ) continue;
+    let bd = 1e9, rd = 1e9; for (let i = 1; i < RAMP.length; i++) { const [ax, az] = RAMP[i - 1], [bx, bz] = RAMP[i]; const t2 = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2))); rd = Math.min(rd, Math.hypot(x - ax - t2 * (bx - ax), z - az - t2 * (bz - az))); }
+    if (rd < 14) continue;
+    WELLS.push([x, z]);
+    let best = ST[0]; for (const S2 of ST) { const dd = Math.hypot(S2[1] - x, S2[2] - z); if (dd < bd) { bd = dd; best = S2; } }
+    lines.push(tubeOf(drapePts(x, z, best[1], best[2], 0.25, 0.9), 0.11));
+  }
+  const lineMesh = new THREE.Mesh(mergeGeometries(lines), peM); lineMesh.castShadow = true; g.add(lineMesh);
+  const wr = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.75, 0.75, 0.45, 14), M.concrete, WELLS.length);
+  const wp = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.13, 0.13, 1.1, 10), std(0x2f3a40, { r: .5 }), WELLS.length);
+  const wv = new THREE.InstancedMesh(new THREE.TorusGeometry(0.14, 0.025, 5, 14).rotateX(Math.PI / 2), M.steelDark, WELLS.length);
+  const wc = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 6), M.steel, WELLS.length), o = new THREE.Object3D();
+  WELLS.forEach(([x, z], i) => {
+    const y = H(x, z);
+    o.position.set(x, y + 0.2, z); o.updateMatrix(); wr.setMatrixAt(i, o.matrix);
+    o.position.set(x, y + 0.75, z); o.updateMatrix(); wp.setMatrixAt(i, o.matrix);
+    o.position.set(x, y + 1.32, z); o.updateMatrix(); wv.setMatrixAt(i, o.matrix);
+    o.position.set(x + 0.2, y + 0.95, z); o.updateMatrix(); wc.setMatrixAt(i, o.matrix);
+  });
+  for (const m of [wr, wp, wv, wc]) { m.castShadow = true; m.receiveShadow = true; g.add(m); }
+  // Hauptsammler zur Verdichterstation mit Rohrbrücke über die Straße
+  const rx = rc - hx - R;
+  g.add(new THREE.Mesh(tubeOf([new THREE.Vector3(rx, 0.6, -40), new THREE.Vector3(202, 0.6, -40), new THREE.Vector3(202, 5.6, -40), new THREE.Vector3(190, 5.6, -40), new THREE.Vector3(190, 1.4, -40), new THREE.Vector3(174.3, 1.4, -40)], 0.2), peM));
+  for (const x of [190, 202]) { box(g, 0.3, 5.4, 0.3, M.steelDark, x, 0, -41); box(g, 0.3, 5.4, 0.3, M.steelDark, x, 0, -39); }
+  for (let x = 177; x < 189; x += 4) box(g, 0.25, 1.2, 0.25, M.steelDark, x, 0, -40, 0, false);
+  reg('gas', g, { name: 'Deponiegaserfassung', kks: 'Gasbrunnen · Gassammelstationen GS 1–4 · Ringleitung',
+    center: new THREE.Vector3(300, 0, -150), anchor: new THREE.Vector3(207, 8, 110), radius: 60,
+    text: 'In den mit Siedlungsabfall verfüllten Altabschnitten entsteht durch anaeroben Abbau Deponiegas (Methan und Kohlendioxid). Es wird über vertikale Gasbrunnen aktiv abgesaugt: Jeder Brunnen hat eine eigene Anschlussleitung mit Gefälle zur Gassammelstation, wo er einzeln eingeregelt und beprobt werden kann. Von den Sammelstationen führt die Ringleitung am Böschungsfuß zur Verdichterstation.',
+    rows: [['Gasbrunnen', `${WELLS.length} Stück, vertikal, Abstand ≈ 50 m *`], ['Brunnenausbau', 'HDPE-Filterrohr in Kiesschüttung, Abdichtung im Kopfbereich'], ['Brunnenkopf', 'Absperr-/Regelarmatur, Mess- und Probenahmestutzen'], ['Anschlussleitungen', 'PE, mit Gefälle zur Sammelstation (Kondensatablauf)'], ['Sammelstationen', 'je Leitung Regelarmatur, Kondensatschacht'], ['Ringleitung', 'PE-Hauptsammler am Böschungsfuß → Verdichterstation']], note: true });
+}
+// Gasverdichterstation mit Innenansicht, Hochtemperaturfackel, Deponiegas-BHKW
+{
+  const g = new THREE.Group(), cx = 165, cz = -40, W = 18, D = 8, Hh = 3.8, t = 0.2, wallM = M.sheetGreen;
+  box(g, W, 0.15, D, M.concreteDark, cx, 0, cz, 0, false);
+  const wn = box(g, W, Hh, t, wallM, cx, 0, cz - D / 2 + t / 2), ws = box(g, W, Hh, t, wallM, cx, 0, cz + D / 2 - t / 2);
+  const ww = box(g, t, Hh, D - 2 * t, wallM, cx - W / 2 + t / 2, 0, cz), we = box(g, t, Hh, D - 2 * t, wallM, cx + W / 2 - t / 2, 0, cz);
+  INT.low = [[ws, Hh], [ww, Hh]];
+  INT.roof = box(g, W + 0.3, 0.3, D + 0.3, M.roof, cx, Hh, cz);
+  for (const x of [cx - 5, cx - 1.5]) box(g, 1.1, 2.2, 0.06, M.door, x, 0, cz - D / 2 - 0.02, 0, false);
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 80; const c2 = cv.getContext('2d');
+  c2.fillStyle = '#f4f4f0'; c2.fillRect(0, 0, 512, 80); c2.fillStyle = '#2b3a4a'; c2.font = 'bold 38px Arial'; c2.textAlign = 'center'; c2.textBaseline = 'middle'; c2.fillText('Gasverdichterstation', 256, 42);
+  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.53), new THREE.MeshStandardMaterial({ map: tx })); sg.position.set(cx - 3.25, 3.05, cz - D / 2 - 0.06); sg.rotation.y = Math.PI; g.add(sg);
+  const ex = document.createElement('canvas'); ex.width = ex.height = 64; const e2 = ex.getContext('2d');
+  e2.fillStyle = '#f5c400'; e2.beginPath(); e2.moveTo(32, 4); e2.lineTo(62, 60); e2.lineTo(2, 60); e2.closePath(); e2.fill(); e2.strokeStyle = '#111'; e2.lineWidth = 4; e2.stroke();
+  e2.fillStyle = '#111'; e2.font = 'bold 22px Arial'; e2.textAlign = 'center'; e2.fillText('EX', 32, 52);
+  const et = new THREE.CanvasTexture(ex); et.colorSpace = THREE.SRGBColorSpace;
+  for (const x of [cx - 5, cx - 1.5]) { const e = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.45), new THREE.MeshStandardMaterial({ map: et, transparent: true })); e.position.set(x, 2.55, cz - D / 2 - 0.06); e.rotation.y = Math.PI; g.add(e); }
+  // Hochtemperaturfackel
+  box(g, 5, 0.3, 5, M.concrete, 150, 0, -28);
+  cyl(g, 1.0, 1.0, 8, M.steel, 150, 0.3, -28, 24); cyl(g, 1.05, 1.05, 1.4, M.steelDark, 150, 7.0, -28, 24);
+  box(g, 0.8, 1.4, 0.5, std(0xd5d8db, { r: .6, m: .2 }), 152.2, 0.3, -26.2);
+  railing([[147.5, -30.5], [152.5, -30.5], [152.5, -25.5], [147.5, -25.5], [147.5, -30.5]], 0.3, 1.8);
+  // Deponiegas-BHKW
+  box(g, 12, 3.2, 3.2, M.sheetGreen, 148, 0, -53); cyl(g, 0.28, 0.28, 8, M.steel, 143, 0, -51.3, 12); box(g, 2.6, 1.0, 2.0, M.steelDark, 152, 3.2, -53);
+  for (const x of [151.3, 152.7]) cyl(g, 0.45, 0.45, 0.06, M.rubber, x, 4.2, -53, 16);
+  // Druckleitungen (gelb) zu Fackel und BHKW
+  const peM2 = std(0xe2b53a, { r: 0.55 });
+  const tb = (pts, r) => g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)), false, 'centripetal', 0.05), 24, r, 8, false), peM2));
+  tb([[155.6, 2.2, -40], [153.2, 2.2, -40], [153.2, 2.2, -28], [151.1, 2.2, -28]], 0.12);
+  tb([[153.2, 2.2, -40], [153.2, 2.2, -49.5], [153.2, 1.6, -51.3]], 0.12);
+  for (const z of [-34, -46]) box(g, 0.2, 2.1, 0.2, M.steelDark, 153.2, 0, z, 0, false);
+  reg('gv', g, { name: 'Gasverdichterstation', kks: 'V1 / V2 · Fackel · BHKW',
+    text: 'Zwei Drehkolbengebläse erzeugen den Unterdruck, mit dem das Gas aus dem Deponiekörper abgesaugt wird, und fördern es mit leichtem Überdruck zum Deponiegas-BHKW. Kann das BHKW kein Gas abnehmen, wird es in der Hochtemperaturfackel verbrannt. Die Station ist explosionsgefährdeter Bereich.',
+    rows: [['Verdichter', '2 × Drehkolbengebläse (1 Betrieb, 1 Reserve)'], ['Gasqualität', 'online CH₄, CO₂, O₂'], ['Verwertung', 'Deponiegas-BHKW (Strom, Wärme)'], ['Fackel', 'Hochtemperaturfackel, geschlossene Brennkammer'], ['Sicherheit', 'Ex-Bereich, Gaswarnanlage, Flammendurchschlagsicherung']],
+    interior: true });
+
+  // ---------- Ausrüstung innen ----------
+  const eq = new THREE.Group(); eq.visible = false; scene.add(eq); INT.eq = eq;
+  const pM = std(0xe2b53a, { r: 0.55 }), stl = std(0x8b939b, { r: .45, m: .5 }), blw = std(0x3f6b8f, { r: .45, m: .35 }), mot = std(0x7d8a96, { r: .45, m: .35 }),
+        lampOn = new THREE.MeshBasicMaterial({ color: 0x2ecc71 }), lampOff = std(0x3a4148), cab = std(0xd5d8db, { r: .6, m: .2 });
+  const pipe = (par, a, b, r, mat = pM) => {
+    const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A), L = d.length();
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, 14), mat); m.position.copy(A).add(B).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); m.castShadow = true; par.add(m); return m;
+  };
+  const valve = (par, x, y, z, axis = 'x') => {
+    box(par, axis === 'x' ? 0.12 : 0.34, 0.34, axis === 'x' ? 0.34 : 0.12, M.steelDark, x, y - 0.17, z);
+    box(par, 0.06, 0.25, 0.06, M.steel, x, y + 0.17, z, 0, false); box(par, 0.35, 0.05, 0.06, std(0xc0392b), x, y + 0.42, z, 0, false);
+  };
+  const subReg = (id, grp, label, anchor, info) => {
+    eq.add(grp); grp.traverse(o => { if (o.isMesh) { o.userData.comp = id; INT.pick.push(o); } });
+    const b = new THREE.Box3().setFromObject(grp), c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3());
+    comps[id] = { id, group: grp, ...info, sub: true, short: label, center: new THREE.Vector3(c.x, 0, c.z), anchor: anchor || new THREE.Vector3(c.x, b.max.y + 0.3, c.z), radius: Math.max(sz.x, sz.z) / 2, height: sz.y };
+    INT.subs.push(id);
+  };
+  const X = v => cx + v, Z = v => cz + v, yS = 1.9, xSS = X(3.0), yD = 2.5, xDS = X(-3.2);
+  // Gaseintritt, Kondensatabscheider
+  {
+    const f = new THREE.Group();
+    pipe(f, [X(W / 2 + 0.3), 1.4, cz], [X(7.1), 1.4, cz], 0.16);
+    cyl(f, 0.5, 0.5, 1.9, stl, X(6.6), 0.15, cz, 20); cyl(f, 0.5, 0.06, 0.25, stl, X(6.6), 2.05, cz, 20);
+    pipe(f, [X(6.6), 0.2, cz + 0.5], [X(6.6), 0.2, cz + 1.4], 0.04, M.steelDark);
+    pipe(f, [X(6.6), 2.3, cz], [X(6.6), 2.6, cz], 0.14); pipe(f, [X(6.6), 2.6, cz], [X(5.1), 2.6, cz], 0.14);
+    valve(f, X(5.8), 2.6, cz);
+    subReg('gv_k', f, 'Kondensatabscheider', new THREE.Vector3(X(6.6), 3.15, cz + 0.7), { name: 'Gaseintritt und Kondensatabscheider', kks: 'K1',
+      text: 'Das aus dem Deponiekörper abgesaugte Gas ist wassergesättigt. Im Kondensatabscheider wird das ausfallende Kondensat abgetrennt und über einen Siphon abgeleitet, bevor das Gas zu den Verdichtern strömt.',
+      rows: [['Eintritt', 'Hauptsammler aus der Ringleitung'], ['Kondensat', 'Siphon → Sickerwasserfassung'], ['Armatur', 'Absperrklappe Gaseintritt']] });
+  }
+  // Flammendurchschlagsicherung
+  {
+    const f = new THREE.Group();
+    pipe(f, [X(5.1), 2.6, cz], [xSS, 2.6, cz], 0.14);
+    pipe(f, [X(4.75), 2.6, cz], [X(4.15), 2.6, cz], 0.27, std(0x9a2f2f, { r: .5, m: .3 }));
+    pipe(f, [xSS, 2.6, cz], [xSS, yS, cz], 0.14);
+    subReg('gv_fds', f, 'Flammensperre', new THREE.Vector3(X(4.45), 3.1, cz), { name: 'Flammendurchschlagsicherung', kks: 'FDS',
+      text: 'Verhindert, dass eine Flamme oder Explosion aus der Station in das Leitungsnetz und den Deponiekörper zurückschlagen kann. Weitere Sicherungen sitzen vor der Fackel und dem BHKW.',
+      rows: [['Bauart', 'Deflagrationssicherung mit Flammenfilter'], ['Einbau', 'saugseitig vor den Verdichtern']] });
+  }
+  // Saug- und Drucksammler, Ausgang zu Fackel / BHKW
+  pipe(eq, [xSS, yS, Z(-2.2)], [xSS, yS, Z(2.2)], 0.14);
+  pipe(eq, [xDS, yD, Z(-2.2)], [xDS, yD, Z(2.2)], 0.14);
+  pipe(eq, [xDS, yD, cz], [xDS - 1.0, yD, cz], 0.12); pipe(eq, [xDS - 1.0, yD, cz], [xDS - 1.0, 2.2, cz], 0.12); pipe(eq, [xDS - 1.0, 2.2, cz], [X(-W / 2 - 0.6), 2.2, cz], 0.12);
+  // Verdichter V1 / V2 (Drehkolbengebläse)
+  const RUN = [true, false];
+  for (let i = 0; i < 2; i++) {
+    const z = Z(i ? 2.2 : -2.2), f = new THREE.Group(), id = `gv_v${i + 1}`;
+    box(f, 3.4, 0.14, 1.9, M.steelDark, X(0.6), 0.15, z + 0.35);
+    box(f, 0.75, 0.7, 0.62, blw, X(1.4), 0.3, z);                                                // Gebläseblock
+    pipe(f, [X(1.4), 1.0, z], [X(1.4), 1.1, z], 0.12, blw);
+    cyl(f, 0.26, 0.26, 0.5, stl, X(1.4), 1.1, z, 18);                                            // Saugschalldämpfer
+    pipe(f, [X(1.4), 1.6, z], [X(1.4), yS, z], 0.1); pipe(f, [X(1.4), yS, z], [xSS, yS, z], 0.1);
+    valve(f, X(2.3), yS, z);
+    pipe(f, [X(1.0), 0.55, z], [X(0.55), 0.55, z], 0.1, blw);
+    box(f, 0.3, 0.32, 0.3, M.steelDark, X(0.4), 0.4, z);                                         // Rückschlagklappe
+    pipe(f, [X(0.25), 0.55, z], [X(-1.6), 0.55, z], 0.1);
+    cyl(f, 0.3, 0.3, 1.3, stl, X(-1.6), 0.3, z, 18);                                             // Druckschalldämpfer
+    pipe(f, [X(-1.6), 1.6, z], [X(-1.6), yD, z], 0.1); pipe(f, [X(-1.6), yD, z], [xDS, yD, z], 0.1);
+    valve(f, X(-2.4), yD, z);
+    pipe(f, [X(0), 0.7, z + 0.62], [X(0), 0.7, z + 1.15], 0.25, mot);                            // Motor
+    pipe(f, [X(0), 0.7, z + 1.15], [X(0), 0.7, z + 1.25], 0.23, M.steelDark);
+    box(f, 0.5, 0.2, 0.5, mot, X(0), 0.29, z + 0.88, 0, false);
+    const gdM = new THREE.MeshStandardMaterial({ color: 0xe0a020, transparent: true, opacity: 0.4, roughness: 0.6 });
+    const gd = new THREE.Mesh(boxGeo, gdM); gd.scale.set(1.95, 0.75, 0.14); gd.position.set(X(0.7), 0.68, z + 0.5); f.add(gd); // Riemenschutz
+    const pul2 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.05, 14).rotateX(Math.PI / 2), M.steel); pul2.position.set(X(0), 0.7, z + 0.52); f.add(pul2);
+    const pul = new THREE.Group(); pul.position.set(X(1.4), 0.65, z + 0.42); f.add(pul);
+    const pm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.05, 16).rotateX(Math.PI / 2), M.steel); pul.add(pm);
+    const pk = new THREE.Mesh(boxGeo, std(0xe6c229)); pk.scale.set(0.05, 0.4, 0.06); pul.add(pk);
+    if (RUN[i]) spinGV.push([pul, 'z']);
+    const pz = z + (i ? 0.95 : -0.95);
+    box(f, 0.08, 1.1, 0.08, M.steelDark, X(2.7), 0.15, pz, 0, false);
+    box(f, 0.26, 0.34, 0.16, std(0xd9c27a), X(2.7), 1.2, pz, 0, false);
+    const lmp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), RUN[i] ? lampOn : lampOff); lmp.position.set(X(2.7), 1.48, pz + 0.1); f.add(lmp);
+    subReg(id, f, `V${i + 1}`, new THREE.Vector3(X(2.7), 2.0, pz), { name: `Gasverdichter V${i + 1} (Drehkolbengebläse)`, kks: `V${i + 1}`,
+      text: 'Zwei gegenläufige Drehkolben fördern das Gas ohne innere Verdichtung von der Saug- zur Druckseite. Saugseitig entsteht der Unterdruck im Leitungsnetz, druckseitig der Vordruck für BHKW und Fackel. Ex-geschützte Ausführung mit Keilriemenantrieb, Saug- und Druckschalldämpfer und Rückschlagklappe.',
+      rows: [['Bauart', 'Drehkolbengebläse (Roots-Prinzip), ex-geschützt'], ['Antrieb', 'Elektromotor über Keilriemen, drehzahlgeregelt'], ['Saugseite', 'Unterdruck im Gasnetz (typ. einige 10 mbar)'], ['Druckseite', 'Vordruck für BHKW / Fackel (typ. 100–200 mbar)'], ['Im Bild', RUN[i] ? 'in Betrieb (Beispielzustand)' : 'Reserve (Beispielzustand)']] });
+    if (i === 1) INT.tags = [['Saugschalldämpfer', X(1.4), 1.95, z], ['Rückschlagklappe', X(0.4), 0.95, z - 0.2], ['Druckschalldämpfer', X(-1.6), 1.85, z],
+      ['Motor', X(-0.1), 1.05, z + 1.0], ['Keilriemenantrieb', X(0.95), 1.25, z + 0.55]].map(([t2, x, y, zz]) => ({ t: t2, v: new THREE.Vector3(x, y, zz) }));
+  }
+  // Gasanalyse
+  {
+    const f = new THREE.Group();
+    box(f, 1.0, 1.9, 0.45, cab, X(-6.5), 0.15, Z(-D / 2 + 0.45));
+    box(f, 0.5, 0.35, 0.02, std(0x9fd3c7, { x: { emissive: 0x2a5a50 } }), X(-6.5), 1.4, Z(-D / 2 + 0.69), 0, false);
+    pipe(f, [X(-6.1), 1.9, Z(-D / 2 + 0.5)], [xDS, yD, Z(-2.2)], 0.02, M.steel);
+    subReg('gv_ga', f, 'Gasanalyse', null, { name: 'Gasanalyse', kks: 'QI CH₄ / CO₂ / O₂',
+      text: 'Kontinuierliche Messung der Gaszusammensetzung. Der Methangehalt bestimmt die Verwertbarkeit im BHKW; steigt der Sauerstoffgehalt, wird Luft in den Deponiekörper gesaugt – die Absaugung wird dann zurückgenommen (Brand- und Explosionsgefahr).',
+      rows: [['Messgrößen', 'CH₄, CO₂, O₂'], ['Typisch', 'CH₄ ~45–55 %, CO₂ ~35–45 %'], ['O₂-Überwachung', 'Drosselung/Abschaltung bei erhöhtem O₂']] });
+  }
+  // Schaltanlage, Gaswarnanlage, Lüftung
+  {
+    const f = new THREE.Group();
+    for (let k = 0; k < 3; k++) { const x = X(4.8 + k * 0.82); box(f, 0.8, 2.0, 0.45, cab, x, 0.15, Z(-D / 2 + 0.45)); for (let l = 0; l < 3; l++) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), (k + l) % 3 === 0 ? lampOn : lampOff); m.position.set(x - 0.2 + l * 0.2, 1.9, Z(-D / 2 + 0.69)); f.add(m); } }
+    for (const x of [X(5.5), X(-5.5)]) box(f, 0.3, 0.2, 0.15, std(0xc0392b), x, 3.3, Z(-D / 2 + 0.2), 0, false);
+    const fan = new THREE.Group(); fan.position.set(X(W / 2 - 0.15), 2.9, Z(2.4)); f.add(fan);
+    const fd = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.05, 18).rotateZ(Math.PI / 2), M.steelDark); fd.position.set(X(W / 2 - 0.12), 2.9, Z(2.4)); f.add(fd);
+    for (let b2 = 0; b2 < 3; b2++) { const bl = new THREE.Mesh(boxGeo, M.steel); bl.scale.set(0.03, 0.6, 0.1); bl.rotation.x = b2 * Math.PI / 3; fan.add(bl); }
+    spinGV.push([fan, 'x']);
+    subReg('gv_sa', f, 'Schaltanlage', new THREE.Vector3(X(5.6), 2.55, Z(-D / 2 + 0.45)), { name: 'Schaltanlage und Gaswarnanlage', kks: 'Steuerung · GWA',
+      text: 'Steuerung der Verdichter, der Fackel und der Gasübergabe an das BHKW. Die Gaswarnanlage überwacht den Raum mit Sensoren an der Decke (Methan ist leichter als Luft) und schaltet bei Gaskonzentration die Zwangslüftung zu und die Anlage ab.',
+      rows: [['Gaswarnanlage', 'CH₄-Sensoren, Alarm- und Abschaltschwellen'], ['Lüftung', 'Zwangslüftung, ex-geschützt'], ['Ex-Schutz', 'Ex-Zonen innerhalb der Station']] });
+    INT.tags.push({ t: 'Gaswarnsensor', v: new THREE.Vector3(X(-5.5), 3.65, Z(-D / 2 + 0.2)) }, { t: 'Lüfter', v: new THREE.Vector3(X(W / 2 - 0.2), 3.4, Z(2.4)) });
+  }
+}
+
 // ------------------------------------------------------------------ Fahrzeuge
 function makeTruck(colBody, tipper) {
   const t = new THREE.Group();
@@ -571,6 +805,7 @@ const FLOW = {
   da: { n: 'Dampf / Strom / Fernwärme', c: 0xe17055, y: 26, p: [[[-12, 20], [-12, 60], [40, 70], [85, 70]], [[-15, 71], [-15, 124], [-262, 124]]] },
   sl: { n: 'Schlacke', c: 0xb2bec3, y: 10, p: [[[-10, -30], [-10, -110], [62, -110]], [[62, -110], [196, -91], [196, 262], [300, 170, 30], [560, -40, 40], [660, -140, 40]]] },
   bg: { n: 'Biogas', c: 0xf1c40f, y: 14, p: [[[55, 190], [100, 178]]] },
+  dg: { n: 'Deponiegas', c: 0xffb142, y: 5, p: [[[300, -150, 30], [207, -150], [207, -40], [165, -40]], [[165, -40], [150, -28]], [[165, -40], [148, -53]]] },
   sw: { n: 'Sickerwasser', c: 0x74b9ff, y: 4, p: [[[230, 262], [206, 262], [176, 262], [140, 268], [-50, 268], [-268, 300]]] }
 };
 const flowMats = [], flowGroup = new THREE.Group(); flowGroup.visible = false; scene.add(flowGroup);
@@ -594,22 +829,46 @@ const legend = document.getElementById('legend');
 legend.innerHTML = Object.values(FLOW).map(f => `<div><i style="background:#${new THREE.Color(f.c).getHexString()}"></i>${f.n}</div>`).join('') + '<div style="color:#8395a7;margin-top:3px">schematisch · Sickerwasser → KA Schwierbach</div>';
 
 // ------------------------------------------------------------------ UI
-const TOUR = ['waage', 'sortier', 'bunker', 'kessel', 'rgr', 'kamin', 'ez', 'schlacke', 'kst', 'verg', 'kompost', 'deponie', 'sw', 'verw'];
-const SHORT = { waage: 'Waage', sortier: 'Sortierung', bunker: 'Bunker', kessel: 'MVA', rgr: 'RGR', kamin: 'Kamin', ez: 'Energiezentrale', schlacke: 'Schlacke', kst: 'KS-Trocknung', verg: 'Vergärung', kompost: 'Kompost', deponie: 'Deponie DK II', sw: 'SWS-1/SB-1', verw: 'Verwaltung' };
+const TOUR = ['waage', 'sortier', 'bunker', 'kessel', 'rgr', 'kamin', 'ez', 'schlacke', 'kst', 'verg', 'kompost', 'deponie', 'gas', 'gv', 'sw', 'verw'];
+const SHORT = { waage: 'Waage', sortier: 'Sortierung', bunker: 'Bunker', kessel: 'MVA', rgr: 'RGR', kamin: 'Kamin', ez: 'Energiezentrale', schlacke: 'Schlacke', kst: 'KS-Trocknung', verg: 'Vergärung', kompost: 'Kompost', deponie: 'Deponie DK II', gas: 'Gasbrunnen/GS', gv: 'Gasverdichter', sw: 'SWS-1/SB-1', verw: 'Verwaltung' };
 const labelBox = document.getElementById('labels');
 for (const id of TOUR) { const el = document.createElement('div'); el.className = 'lbl'; el.textContent = SHORT[id]; el.addEventListener('click', e => { e.stopPropagation(); select(id, true); }); labelBox.appendChild(el); comps[id].el = el; }
+for (const id of INT.subs) { const el = document.createElement('div'); el.className = 'lbl'; el.textContent = comps[id].short; el.style.display = 'none'; el.addEventListener('click', e => { e.stopPropagation(); select(id, false); }); labelBox.appendChild(el); comps[id].el = el; }
+for (const tg of INT.tags) { tg.el = document.createElement('div'); tg.el.className = 'tag'; tg.el.textContent = tg.t; tg.el.style.display = 'none'; labelBox.appendChild(tg.el); }
+let interiorOn = false;
+function setInterior(on) {
+  interiorOn = on; INT.eq.visible = on; INT.roof.visible = !on;
+  for (const [w, h] of INT.low) { const H2 = on ? 0.9 : h; w.scale.y = H2; w.position.y = H2 / 2; }
+  for (const id of TOUR) comps[id].el.style.display = on ? 'none' : '';
+  for (const id of INT.subs) comps[id].el.style.display = on ? '' : 'none';
+  for (const tg of INT.tags) tg.el.style.display = on ? '' : 'none';
+  vehicles.forEach(v => v.obj.visible = traffic && !on);
+}
+function openInterior() {
+  setInterior(true); marker.visible = false;
+  const small = innerWidth / innerHeight < 0.8;
+  flyTo(small ? new THREE.Vector3(165, 0.5, -41) : new THREE.Vector3(164.5, 0.5, -37.5), small ? new THREE.Vector3(165, 35, -16) : new THREE.Vector3(164.5, 12.5, -24.5), 1.6);
+  select('gv', false, true);
+}
 const marker = new THREE.Mesh(new THREE.RingGeometry(0.95, 1, 96).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffd54a, transparent: true, depthWrite: false }));
 marker.visible = false; scene.add(marker);
 const info = document.getElementById('info'), infoBody = document.getElementById('infoBody'), tname = document.getElementById('tname');
 let tourIdx = -1, auto = null, fly = null;
-function select(id, doFly) {
+function select(id, doFly, keepInterior) {
   const c = comps[id];
+  if (interiorOn && !c.sub && !keepInterior && id !== 'gv') setInterior(false);
   for (const k in comps) comps[k].el.classList.toggle('sel', k === id);
-  marker.visible = id !== 'deponie'; marker.position.set(c.center.x, 0.3, c.center.z); marker.scale.setScalar(c.radius + 5);
+  marker.visible = id !== 'deponie' && id !== 'gas' && !(interiorOn && id === 'gv'); marker.position.set(c.center.x, c.sub ? 0.25 : 0.3, c.center.z); marker.scale.setScalar(c.sub ? c.radius + 0.4 : c.radius + 5);
   infoBody.innerHTML = `<h2>${c.name}</h2><div class="kks">${c.kks}</div><p>${c.text}</p><table>${c.rows.map(r => `<tr><td class="k">${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>` +
     (c.link ? `<p style="margin-top:8px"><a href="${c.link[0]}" target="_blank" rel="noopener">${c.link[1]}</a></p>` : '') +
-    (c.note ? '<div class="note">* Abmessung für die 3D-Ansicht angenommen (in der Simulation nicht festgelegt).</div>' : '');
+    (c.note ? '<div class="note">* Abmessung für die 3D-Ansicht angenommen (in der Simulation nicht festgelegt).</div>' : '') +
+    (c.interior ? `<p style="margin:10px 0 0"><button class="btn" id="bInt">${interiorOn ? '⬆ Außenansicht' : '🔍 Innenansicht öffnen'}</button></p>` : '') +
+    (c.sub ? '<p style="margin:10px 0 0"><button class="btn" id="bIntBack">‹ Station</button> <button class="btn" id="bIntOut">⬆ Außenansicht</button></p>' : '');
   info.style.display = 'block'; layout();
+  document.getElementById('bInt')?.addEventListener('click', () => { if (interiorOn) { setInterior(false); select('gv', true); } else openInterior(); });
+  document.getElementById('bIntBack')?.addEventListener('click', () => select('gv', false, true));
+  document.getElementById('bIntOut')?.addEventListener('click', () => { setInterior(false); select('gv', true); });
+  if (c.sub) return;
   tourIdx = TOUR.indexOf(id); tname.innerHTML = `${c.name} <small>${tourIdx + 1}/${TOUR.length}</small>`;
   if (doFly) {
     const d = Math.min(950, Math.max(70, c.radius * 2.4 + Math.min(c.height, 90) * 1.3 + 30)), dir = new THREE.Vector3(-0.35, 0.72, 0.9).normalize();
@@ -633,21 +892,21 @@ document.getElementById('bAuto').onclick = e => {
   select(TOUR[(tourIdx + 1) % TOUR.length], true);
   auto = setInterval(() => select(TOUR[(tourIdx + 1) % TOUR.length], true), 7000);
 };
-document.getElementById('bHome').onclick = () => { stopAuto(); deselect(); tourIdx = -1; tname.textContent = 'Rundgang starten ›'; HOME(); };
+document.getElementById('bHome').onclick = () => { stopAuto(); setInterior(false); deselect(); tourIdx = -1; tname.textContent = 'Rundgang starten ›'; HOME(); };
 document.getElementById('close').onclick = deselect;
 let showLbl = true;
 document.getElementById('bLbl').onclick = e => { showLbl = !showLbl; e.target.classList.toggle('on', showLbl); labelBox.style.display = showLbl ? '' : 'none'; };
 document.getElementById('bFlow').onclick = e => { flowGroup.visible = !flowGroup.visible; e.target.classList.toggle('on', flowGroup.visible); legend.style.display = flowGroup.visible ? 'block' : 'none'; layout(); };
 let traffic = true;
-document.getElementById('bTraffic').onclick = e => { traffic = !traffic; e.target.classList.toggle('on', traffic); vehicles.forEach(v => v.obj.visible = traffic); };
+document.getElementById('bTraffic').onclick = e => { traffic = !traffic; e.target.classList.toggle('on', traffic); vehicles.forEach(v => v.obj.visible = traffic && !interiorOn); };
 controls.addEventListener('start', () => { fly = null; stopAuto(); });
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
 canvas.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
 canvas.addEventListener('pointerup', e => {
   if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) return;
   ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
-  const h = ray.intersectObjects(pickables, false)[0];
-  if (h) select(h.object.userData.comp, false); else deselect();
+  const h = (interiorOn && ray.intersectObjects(INT.pick, false)[0]) || ray.intersectObjects(pickables, false)[0];
+  if (h) select(h.object.userData.comp, false, interiorOn && h.object.userData.comp === 'gv'); else deselect();
 });
 function layout() {
   const bh = document.getElementById('bottom').offsetHeight;
@@ -691,7 +950,14 @@ function tick() {
   }
   controls.update();
   renderer.render(scene, camera);
-  if (showLbl) for (const id of TOUR) {
+  for (const [o2, ax] of spinGV) o2.rotation[ax] += 10 * dt;
+  const near = camera.position.distanceTo(controls.target) < 24;
+  if (showLbl && interiorOn) for (const tg of INT.tags) {
+    pv.copy(tg.v).project(camera);
+    if (!near || pv.z > 1 || Math.abs(pv.x) > 1.05 || Math.abs(pv.y) > 1.05) { tg.el.style.display = 'none'; continue; }
+    tg.el.style.display = ''; tg.el.style.transform = `translate(${(pv.x * .5 + .5) * innerWidth}px,${(-pv.y * .5 + .5) * innerHeight}px) translate(-50%,-100%)`;
+  }
+  if (showLbl) for (const id of (interiorOn ? INT.subs : TOUR)) {
     const c = comps[id]; pv.copy(c.anchor).project(camera);
     if (pv.z > 1 || Math.abs(pv.x) > 1.05 || Math.abs(pv.y) > 1.05) { c.el.style.display = 'none'; continue; }
     c.el.style.display = ''; c.el.style.transform = `translate(${(pv.x * .5 + .5) * innerWidth}px,${(-pv.y * .5 + .5) * innerHeight}px) translate(-50%,-100%)`;
