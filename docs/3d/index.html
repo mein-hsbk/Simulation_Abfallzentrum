@@ -39,12 +39,113 @@
   .lbl.sel{background:#ffd54a;color:#16213e;border-color:#ffd54a;font-weight:bold}
   #legend{position:fixed;right:8px;display:none;background:#16213ee6;border:1px solid #2d4a7a;border-radius:8px;padding:6px 8px;font-size:11px;line-height:1.55}
   #legend i{display:inline-block;width:16px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  /* Begehung, Anlagensimulation, Missionen */
+  #simClock{font-size:11px;color:#b2bec3;font-family:monospace}
+  .btn.alarm{background:#c0392b;border-color:#e74c3c;animation:bl 1s steps(2) infinite}
+  @keyframes bl{50%{background:#7b241c}}
+  @media (prefers-reduced-motion:reduce){.btn.alarm{animation:none}}
+  #walkbar{display:none}
+  body.walking #tour,body.walking #opts{display:none}
+  body.walking #walkbar{display:block}
+  #walkSt,#walkTools{display:flex;gap:6px;overflow-x:auto}
+  #walkTools{margin-top:7px}
+  #walkSt .btn,#walkTools .btn{font-size:12px;padding:6px 9px}
+  #walkTools .hint{flex:1;font-size:11px;color:#8395a7;align-self:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #cross{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#fff9;box-shadow:0 0 0 1px #0006;pointer-events:none;display:none}
+  body.walking #cross{display:block}
+  #hint{position:fixed;left:50%;top:calc(50% + 26px);transform:translateX(-50%);background:#16213ef0;border:1px solid #ffd54a;color:#ffeaa7;border-radius:8px;padding:9px 14px;font-size:14px;display:none;cursor:pointer}
+  #hint .k{display:inline-block;border:1px solid #ffeaa7;border-radius:4px;padding:0 5px;margin-left:6px;font-family:monospace;font-size:12px}
+  #joy{position:fixed;width:120px;height:120px;border-radius:50%;border:2px solid #fff6;background:#fff1;display:none;pointer-events:none}
+  #knob{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:50%;background:#fff8}
+  .ov{position:fixed;inset:0;background:#0b1426cc;display:none;align-items:center;justify-content:center;padding:12px;z-index:6}
+  .card{background:#16213e;border:1px solid #2d4a7a;border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:14px 16px;box-shadow:0 10px 40px #0009}
+  .card h2{margin:0 0 2px;font-size:17px;color:#ffeaa7}
+  .card .sub{color:#b2bec3;font-size:13px;margin-bottom:8px}
+  .card label{display:block;font-size:13px;color:#b2bec3;margin:10px 0 4px}
+  .card select{width:100%;font-size:16px;padding:8px;border-radius:6px;background:#0f3460;color:#fff;border:1px solid #2d4a7a}
+  .card details{font-size:12.5px;color:#dfe6e9;margin-top:10px}.card details p{margin:6px 0}
+  #dcv{width:100%;max-width:420px;display:block;margin:6px auto;border-radius:8px;background:#000}
+  #dInfo{font-size:13px;line-height:1.45;color:#dfe6e9}
+  #dAct{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .actT{flex-basis:100%;font-size:12px;color:#74b9ff;margin:6px 0 -2px;text-transform:none}
+  .actRow{flex-basis:100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:#dfe6e9}
+  .actL{min-width:150px}
+  .seg{display:inline-flex;gap:0}.seg .btn{border-radius:0;font-size:12.5px;padding:7px 10px;min-height:36px}.seg .btn:first-child{border-radius:6px 0 0 6px}.seg .btn:last-child{border-radius:0 6px 6px 0}
+  .num{display:inline-flex;align-items:center;gap:6px;color:#b2bec3}.num input{width:76px;font-size:16px;padding:5px 7px;border-radius:5px;border:1px solid #2d4a7a;background:#0f3460;color:#fff;font-family:monospace}
+  .act{background:#e17055;border-color:#e17055}
+  #pls{position:fixed;right:8px;top:calc(env(safe-area-inset-top) + 58px);width:min(430px,calc(100% - 16px));max-height:calc(100% - 170px);overflow:auto;background:#0f1b30f5;border:1px solid #2d4a7a;border-radius:10px;padding:10px 12px;display:none;z-index:3}
+  #pls h3{margin:0 0 6px;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+  #pls table{width:100%;border-collapse:collapse;font-size:12.5px}
+  #pls td{padding:3px 4px;border-bottom:1px solid #1f3352}
+  #pls td.tg{font-family:monospace;color:#74b9ff;white-space:nowrap}
+  #pls td.v{text-align:right;font-family:monospace;font-size:14px;white-space:nowrap}
+  #pls td.u{color:#b2bec3;white-space:nowrap}
+  .v.w{color:#fdcb6e}.v.a,.a{color:#ff7675;font-weight:bold}
+  .cnt{font-size:11.5px;color:#b2bec3;margin:6px 0}
+  #trend{width:100%;height:150px;display:block;border-radius:6px}
+  .leg{font-size:11px;color:#b2bec3;margin:3px 0 8px}.leg i{display:inline-block;width:12px;height:3px;margin:0 4px 2px 8px;vertical-align:middle}
+  .al{font-size:12px;padding:4px 6px;border-left:3px solid #2d4a7a;margin:2px 0;color:#8395a7}
+  .al span{font-family:monospace;margin-right:8px}
+  .al.on.kA{border-color:#e74c3c;color:#fff;background:#4a1a1a}.al.on.kW{border-color:#fdcb6e;color:#fff;background:#3d3417}.al.on.kM{border-color:#74b9ff;color:#fff}
+  #log{position:fixed;left:8px;right:8px;bottom:110px;max-width:720px;margin:0 auto;background:#0f1b30f5;border:1px solid #2d4a7a;border-radius:10px;padding:10px;display:none;z-index:4}
+  #logBody{font-family:monospace;font-size:11.5px;white-space:pre;overflow:auto;max-height:38vh;color:#dfe6e9}
+  #meldText{width:100%;min-height:110px;font-size:16px;border-radius:6px;padding:8px;background:#0f3460;color:#fff;border:1px solid #2d4a7a}
+  #toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:#2d3436;border:1px solid #636e72;padding:9px 14px;border-radius:8px;font-size:13.5px;display:none;z-index:9;max-width:90%}
+  @media (max-width:600px){#top{gap:6px;padding-left:8px;padding-right:8px}#top h1{font-size:12px}#top .sub,#simClock,#bHome .t{display:none}#top .btn{padding:6px 7px;font-size:12px}}
+  #pls,#log,.card,.mis,#misBar{box-sizing:border-box}
+  body.mission #pls{top:calc(env(safe-area-inset-top) + 92px);max-height:calc(100% - 200px)}
+  #plsTabs{display:flex;gap:4px;flex:1;margin:0 8px}#plsTabs .btn{font-size:12px;padding:5px 8px}
+  #pls td.v.hd{color:#b2bec3;font-family:Arial;font-size:11px}
+  .fp{border:1px solid #2d4a7a;border-radius:8px;padding:6px 8px;margin:8px 0;background:#0b1424}
+  .fph{display:flex;align-items:center;gap:8px;font-size:12.5px}.fph b{font-family:monospace;color:#74b9ff}
+  .fph .mode{margin-left:auto;font-size:11px;padding:4px 8px;background:#00b894;border-color:#00b894;color:#0b1a2e;font-weight:bold}
+  .fph .mode.hand{background:#fdcb6e;border-color:#fdcb6e}
+  .fp .ist{font-size:11.5px;color:#b2bec3;margin:3px 0}
+  .fpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px}
+  .fpi label{font-size:11px;color:#b2bec3;display:flex;align-items:center;gap:4px;white-space:nowrap}
+  .fpi input{width:64px;font-size:14px;padding:3px 5px;border-radius:4px;border:1px solid #2d4a7a;background:#0f3460;color:#fff;font-family:monospace}
+  #trendG,#trendB,#trendP{width:100%;height:150px;display:block;border-radius:6px;margin-top:6px}
+  .card.wide{max-width:860px}
+  #misList{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:8px}
+  .mis{background:#0f3460;border:1px solid #2d4a7a;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column}
+  .mis p{font-size:12.5px;line-height:1.45;color:#dfe6e9;margin:6px 0;flex:1}
+  .mis details{font-size:11.5px;color:#b2bec3;margin-bottom:8px}.mis details p{font-size:11.5px;color:#b2bec3}
+  .misT{display:flex;justify-content:space-between;gap:8px;font-size:14.5px;color:#ffeaa7}.misT .st{color:#fdcb6e;white-space:nowrap}
+  .misM{font-size:11.5px;color:#74b9ff}
+  .misOpt{margin-top:12px;max-width:420px}
+  .auftrag{font-size:14.5px;line-height:1.55;color:#dfe6e9;background:#0f3460;border-left:4px solid #fdcb6e;padding:10px 12px;border-radius:6px}
+  #misBar{position:fixed;left:8px;top:calc(env(safe-area-inset-top) + 52px);display:none;gap:6px;align-items:center;background:#16213ef0;border:1px solid #fdcb6e;border-radius:8px;padding:4px 6px 4px 10px;font-size:12.5px;z-index:2}
+  #misBar .btn{font-size:11.5px;padding:4px 8px}
+  .chk{list-style:none;padding:0;margin:8px 0;font-size:13.5px;line-height:1.7}.chk .ok{color:#55efc4}.chk .no{color:#ff7675}
+  .rp h3{font-size:14px;color:#ffeaa7;margin:16px 0 6px}
+  .rpMeta{font-size:12px;color:#b2bec3;margin:4px 0 6px}
+  .rpOpt{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:8px 0;font-size:12.5px;color:#b2bec3}
+  .rpOpt input[type=text],#auswName{font-size:16px;padding:6px 8px;border-radius:6px;border:1px solid #2d4a7a;background:#0f3460;color:#fff;width:220px;margin-left:6px}
+  .rpOpt .cb{display:flex;gap:6px;align-items:center}
+  .chk .why{color:#b2bec3;font-size:12px;line-height:1.4;margin:0 0 4px 18px}
+  .hw{margin:4px 0;padding-left:18px;font-size:13px;line-height:1.5;color:#dfe6e9}
+  .rpT{width:100%;border-collapse:collapse;font-size:12.5px;margin:4px 0}.rpT th{text-align:left;color:#b2bec3;font-weight:normal;border-bottom:1px solid #2d4a7a;padding:4px}
+  .rpT td{padding:4px;border-bottom:1px solid #1f3352;vertical-align:top;color:#dfe6e9}.rpT td.n{font-family:monospace;white-space:nowrap}
+  .rpC{width:100%;display:block;margin:8px 0;border-radius:6px}
+  .rp details{margin-top:12px;font-size:12.5px;color:#dfe6e9}.rp details p{line-height:1.5}
+  .rpBtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;position:sticky;bottom:-14px;background:#16213e;padding:10px 0}
+  .kz{font-size:13px;color:#ffeaa7;background:#0f3460;padding:8px 10px;border-radius:6px}
+  body.exam #walkSt,body.exam #labels{display:none !important}
+  @media (max-width:600px){#bMis .t{display:none}}
+  .card input[type=text],.card input[type=number],.card textarea{width:100%;box-sizing:border-box;font-size:16px;padding:7px 8px;border-radius:6px;background:#0f3460;color:#fff;border:1px solid #2d4a7a}
+  .card textarea{min-height:56px}
+  .bestRow{display:flex;gap:10px;flex-wrap:wrap}.bestRow>div{flex:1;min-width:140px}
+  #bestInfo{font-size:12px;color:#74b9ff;margin-top:4px}
+  #bestListe{margin-top:12px}
+  #dAct .btn{white-space:normal;text-align:left}
+  .bestBtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  @media (max-width:600px){#bPLS .t,#bWalk .t{display:none}}
   #load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#16213e;color:#b2bec3;font-size:14px;z-index:9}
   @media (max-width:520px){ #top .opt{display:none} }
 </style>
 <script type="importmap">
-{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-            "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+{"imports":{"three":"./vendor/three.module.min.js",
+            "three/addons/":"./vendor/addons/"}}
 </script>
 </head>
 <body>
@@ -53,8 +154,68 @@
 <div id="top">
   <div><h1>Abfall- &amp; Energiezentrum Schwierbach · 3D</h1><div class="sub">MVA 2 Linien · Sortierung · Vergärung<span class="opt"> · Deponie DK II 41 ha</span></div></div>
   <div class="sp"></div>
-  <button class="btn" id="bHome" title="Gesamtansicht">⌂ Übersicht</button>
+  <div style="text-align:right"><div id="simClock"></div></div>
+  <button class="btn" id="bMis" title="Missionen starten">🎯<span class="t"> Missionen</span></button>
+  <button class="btn" id="bPLS" title="Leitwarte Deponiegas (Tab)">🖥<span class="t"> Leitwarte</span></button>
+  <button class="btn" id="bWalk" title="Gasverdichterstation in Ich-Perspektive begehen">🚶<span class="t"> Begehen</span></button>
+  <button class="btn" id="bHome" title="Gesamtansicht">⌂<span class="t"> Übersicht</span></button>
 </div>
+<div id="cross"></div>
+<div id="hint"></div>
+<div id="joy"><div id="knob"></div></div>
+<div id="pls">
+  <h3>Leitwarte · Deponiegasabsaugung <button class="btn" id="plsClose" aria-label="Schließen">×</button></h3>
+  <div id="gasVals"></div>
+  <canvas id="trendG"></canvas>
+  <div class="leg">Trend 3 h, Skala 0–100 %:<i style="background:#ffd32a"></i>PI 801 (0–60 mbar)<i style="background:#00d2d3"></i>FI 801 (0–300 Nm³/h)<i style="background:#ff7675"></i>O₂ (0–10 %)<i style="background:#fd79a8"></i>TI 812 (°C)<i style="background:#a29bfe"></i>TI 822<i style="background:#74b9ff"></i>FU V1 (20–60 Hz)</div>
+  <div id="gasAl"></div>
+</div>
+<div id="log"><div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b style="flex:1">Protokoll</b><button class="btn" id="logCopy">Kopieren</button><button class="btn" id="logClose">×</button></div><div id="logBody"></div></div>
+<div class="ov" id="detail"><div class="card">
+  <div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1"><h2 id="dTitle"></h2><div class="sub" id="dName"></div></div><button class="btn" id="dClose" aria-label="Schließen">×</button></div>
+  <canvas id="dcv"></canvas><div id="dInfo"></div><div id="dAct"></div>
+</div></div>
+<div class="ov" id="meld"><div class="card">
+  <h2>Meldung an die Schichtleitung</h2>
+  <div class="sub">Befund, festgestellte Ursache, durchgeführte Maßnahmen, Zustand V1/V2, bestellte Ersatzteile</div>
+  <div id="meldDiagW" style="display:none;margin-bottom:8px"><label class="sub" for="meldDiag">Festgestellte Ursache</label><select id="meldDiag" style="width:100%;font-size:15px;padding:6px;border-radius:6px;background:#0f3460;color:#fff;border:1px solid #2d4a7a;margin-top:4px"></select></div>
+  <textarea id="meldText"></textarea>
+  <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end"><button class="btn" id="meldCancel">Abbrechen</button><button class="btn on" id="meldOk">Protokollieren</button></div>
+</div></div>
+<div class="ov" id="best"><div class="card wide">
+  <div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1"><h2>Bestellanforderung Ersatzteile</h2><div class="sub">An den Einkauf · Lieferantenkatalog Gasverdichterstation. Angaben vom Typenschild und die Anforderungen vor Ort (Ex-Zone, Gasart) mit angeben.</div></div><button class="btn" id="bestClose" aria-label="Schließen">×</button></div>
+  <label for="bestArt">Artikel</label><select id="bestArt"></select><div id="bestInfo"></div>
+  <div class="bestRow">
+    <div><label for="bestMenge">Menge</label><input type="number" id="bestMenge" min="1" value="1"></div>
+    <div><label for="bestFuer">für Aggregat / Einbauort</label><select id="bestFuer"><option value="V1">Verdichter V1</option><option value="V2">Verdichter V2</option><option value="Station">Station (Saug-/Druckseite gemeinsam)</option><option value="Hauptsammler">Hauptsammler / Leitungsnetz</option></select></div>
+  </div>
+  <label for="bestTyp">Typ und Serien-Nr. (vom Typenschild)</label><input type="text" id="bestTyp" autocomplete="off" placeholder="z. B. Hersteller, Typ, Serien-Nr.">
+  <label for="bestAnf">Besondere Anforderungen / Hinweise an den Lieferanten</label><textarea id="bestAnf" placeholder="z. B. Ex-Kennzeichnung, Zone, Werkstoff, Abmessung"></textarea>
+  <label style="display:flex;gap:8px;align-items:center;color:#dfe6e9"><input type="checkbox" id="bestEil"> Eilt (Verdichter ohne Reserve)</label>
+  <div class="bestBtns"><button class="btn on" id="bestOk">Position bestellen</button><button class="btn" id="bestHilfe">Wo finde ich die Angaben?</button></div>
+  <div id="bestListe"></div>
+</div></div>
+<div class="ov" id="mis"><div class="card wide">
+  <div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1"><h2>🎯 Missionen</h2><div class="sub">Vorbereitete Störungen an der Deponiegas-Verdichterstation. Start vor der Station, danach Begehung im Ex-Bereich. Ein Start setzt Simulation und Protokoll zurück.</div></div><button class="btn" id="misClose" aria-label="Schließen">×</button></div>
+  <div id="misList"></div>
+  <div class="misOpt"><label for="spSel">Zeitraffer</label>
+  <select id="spSel"><option value="1">×1 (Echtzeit)</option><option value="5">×5</option><option value="10">×10</option><option value="60">×60 (1 s = 1 min)</option></select>
+  <label style="display:flex;gap:8px;align-items:center;color:#dfe6e9;margin-top:10px"><input type="checkbox" id="misExam"> Prüfungsmodus: ohne Beschriftungen, Schnellwahl und Erklärtexte</label></div>
+</div></div>
+<div class="ov" id="brief"><div class="card">
+  <div class="sub" id="briefM"></div><h2 id="briefT"></h2>
+  <p id="briefA" class="auftrag"></p>
+  <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn on" id="briefGo">Los geht's ›</button></div>
+</div></div>
+<div class="ov" id="ausw"><div class="card wide rp">
+  <div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1"><div class="sub">Missionsbericht</div><h2 id="auswT"></h2></div><button class="btn" id="auswClose" aria-label="Weiterspielen" title="Weiterspielen">×</button></div>
+  <div class="rpOpt"><label>Name <input id="auswName" placeholder="optional, erscheint im PDF" autocomplete="off"></label>
+  <label class="cb"><input type="checkbox" id="auswML"> Musterlösung ins PDF aufnehmen</label></div>
+  <div id="auswBody"></div>
+  <div class="rpBtns"><button class="btn on" id="auswPDF">⬇ Bericht als PDF</button><button class="btn" id="auswCopy">Text kopieren</button><span style="flex:1"></span><button class="btn" id="auswNeu">Neue Mission</button></div>
+</div></div>
+<div id="misBar"><span>🎯 <b id="misName"></b> · <span id="misTime">00:00</span></span><button class="btn" id="bAuftrag">Auftrag</button><button class="btn" id="bEnde">Beenden</button></div>
+<div id="toast"></div>
 <div id="info"><button id="close" aria-label="Schließen">×</button><div id="infoBody"></div></div>
 <div id="legend"></div>
 <div id="bottom">
@@ -69,6 +230,10 @@
     <button class="btn" id="bFlow">Stoffströme</button>
     <button class="btn on" id="bTraffic">Fahrzeuge</button>
   </div>
+  <div id="walkbar">
+    <div id="walkSt"></div>
+    <div id="walkTools"><button class="btn" id="bMis2">🎯 Missionen</button><button class="btn" id="bMeld">Meldung</button><button class="btn" id="bBest">Bestellung</button><button class="btn" id="bLog">Protokoll</button><span class="hint">W A S D gehen · Ziehen umsehen · E / Klick: Instrument · Tab: Leitwarte</span></div>
+  </div>
 </div>
 <div id="load">3D-Modell wird geladen …</div>
 
@@ -76,6 +241,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { initAnlageUI } from './js/anlage-ui.js';
+import { buildGasstation } from './js/gas-szene.js';
+import { initMissionen } from './js/missionen.js';
+import { initBestellung } from './js/bestellung.js';
+import { instMeshes, insts, updateInstruments } from './js/instrumente.js';
+import { createWalk } from './js/begehung.js';
+import { simTick, sim } from './js/anlage-sim.js';
 
 // ------------------------------------------------------------------ Renderer / Szene
 const canvas = document.getElementById('c');
@@ -581,9 +753,8 @@ const spinGV = [];
   for (const m of [wr, wp, wv, wc]) { m.castShadow = true; m.receiveShadow = true; g.add(m); }
   // Hauptsammler zur Verdichterstation mit Rohrbrücke über die Straße
   const rx = rc - hx - R;
-  g.add(new THREE.Mesh(tubeOf([new THREE.Vector3(rx, 0.6, -40), new THREE.Vector3(202, 0.6, -40), new THREE.Vector3(202, 5.6, -40), new THREE.Vector3(190, 5.6, -40), new THREE.Vector3(190, 1.4, -40), new THREE.Vector3(174.3, 1.4, -40)], 0.2), peM));
+  g.add(new THREE.Mesh(tubeOf([new THREE.Vector3(rx, 0.6, -40), new THREE.Vector3(202, 0.6, -40), new THREE.Vector3(202, 5.6, -40), new THREE.Vector3(190, 5.6, -40), new THREE.Vector3(190, 1.4, -40)], 0.2), peM));
   for (const x of [190, 202]) { box(g, 0.3, 5.4, 0.3, M.steelDark, x, 0, -41); box(g, 0.3, 5.4, 0.3, M.steelDark, x, 0, -39); }
-  for (let x = 177; x < 189; x += 4) box(g, 0.25, 1.2, 0.25, M.steelDark, x, 0, -40, 0, false);
   reg('gas', g, { name: 'Deponiegaserfassung', kks: 'Gasbrunnen · Gassammelstationen GS 1–4 · Ringleitung',
     center: new THREE.Vector3(300, 0, -150), anchor: new THREE.Vector3(207, 8, 110), radius: 60,
     text: 'In den mit Siedlungsabfall verfüllten Altabschnitten entsteht durch anaeroben Abbau Deponiegas (Methan und Kohlendioxid). Es wird über vertikale Gasbrunnen aktiv abgesaugt: Jeder Brunnen hat eine eigene Anschlussleitung mit Gefälle zur Gassammelstation, wo er einzeln eingeregelt und beprobt werden kann. Von den Sammelstationen führt die Ringleitung am Böschungsfuß zur Verdichterstation.',
@@ -593,11 +764,15 @@ const spinGV = [];
 {
   const g = new THREE.Group(), cx = 165, cz = -40, W = 18, D = 8, Hh = 3.8, t = 0.2, wallM = M.sheetGreen;
   box(g, W, 0.15, D, M.concreteDark, cx, 0, cz, 0, false);
-  const wn = box(g, W, Hh, t, wallM, cx, 0, cz - D / 2 + t / 2), ws = box(g, W, Hh, t, wallM, cx, 0, cz + D / 2 - t / 2);
+  const zN = cz - D / 2 + t / 2, dx0 = cx - 5.55, dx1 = cx - 4.45, wx0 = cx - W / 2, wx1 = cx + W / 2;
+  box(g, dx0 - wx0, Hh, t, wallM, (wx0 + dx0) / 2, 0, zN); box(g, wx1 - dx1, Hh, t, wallM, (dx1 + wx1) / 2, 0, zN);
+  box(g, dx1 - dx0, Hh - 2.2, t, wallM, cx - 5, 2.2, zN, 0, false);                    // Sturz über der Tür
+  const ws = box(g, W, Hh, t, wallM, cx, 0, cz + D / 2 - t / 2);
   const ww = box(g, t, Hh, D - 2 * t, wallM, cx - W / 2 + t / 2, 0, cz), we = box(g, t, Hh, D - 2 * t, wallM, cx + W / 2 - t / 2, 0, cz);
   INT.low = [[ws, Hh], [ww, Hh]];
   INT.roof = box(g, W + 0.3, 0.3, D + 0.3, M.roof, cx, Hh, cz);
-  for (const x of [cx - 5, cx - 1.5]) box(g, 1.1, 2.2, 0.06, M.door, x, 0, cz - D / 2 - 0.02, 0, false);
+  box(g, 1.1, 2.2, 0.06, M.door, cx - 1.5, 0, cz - D / 2 - 0.02, 0, false);
+  box(g, 0.06, 2.2, 1.05, M.door, dx0 + 0.03, 0, cz - D / 2 - 0.56, 0, false);         // Tür zur Begehung geöffnet
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 80; const c2 = cv.getContext('2d');
   c2.fillStyle = '#f4f4f0'; c2.fillRect(0, 0, 512, 80); c2.fillStyle = '#2b3a4a'; c2.font = 'bold 38px Arial'; c2.textAlign = 'center'; c2.textBaseline = 'middle'; c2.fillText('Gasverdichterstation', 256, 42);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
@@ -624,12 +799,13 @@ const spinGV = [];
   reg('gv', g, { name: 'Gasverdichterstation', kks: 'V1 / V2 · Fackel · BHKW',
     text: 'Zwei Drehkolbengebläse erzeugen den Unterdruck, mit dem das Gas aus dem Deponiekörper abgesaugt wird, und fördern es mit leichtem Überdruck zum Deponiegas-BHKW. Kann das BHKW kein Gas abnehmen, wird es in der Hochtemperaturfackel verbrannt. Die Station ist explosionsgefährdeter Bereich.',
     rows: [['Verdichter', '2 × Drehkolbengebläse (1 Betrieb, 1 Reserve)'], ['Gasqualität', 'online CH₄, CO₂, O₂'], ['Verwertung', 'Deponiegas-BHKW (Strom, Wärme)'], ['Fackel', 'Hochtemperaturfackel, geschlossene Brennkammer'], ['Sicherheit', 'Ex-Bereich, Gaswarnanlage, Flammendurchschlagsicherung']],
-    interior: true });
+    interior: true, walk: 'verdichter' });
 
   // ---------- Ausrüstung innen ----------
-  const eq = new THREE.Group(); eq.visible = false; scene.add(eq); INT.eq = eq;
+  const eq = new THREE.Group(); scene.add(eq); INT.eq = eq; INT.pul = []; INT.guard = []; INT.lamp = [];
   const pM = std(0xe2b53a, { r: 0.55 }), stl = std(0x8b939b, { r: .45, m: .5 }), blw = std(0x3f6b8f, { r: .45, m: .35 }), mot = std(0x7d8a96, { r: .45, m: .35 }),
         lampOn = new THREE.MeshBasicMaterial({ color: 0x2ecc71 }), lampOff = std(0x3a4148), cab = std(0xd5d8db, { r: .6, m: .2 });
+  INT.lampOn = lampOn; INT.lampOff = lampOff;
   const pipe = (par, a, b, r, mat = pM) => {
     const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A), L = d.length();
     const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, 14), mat); m.position.copy(A).add(B).multiplyScalar(0.5);
@@ -675,8 +851,8 @@ const spinGV = [];
   // Verdichter V1 / V2 (Drehkolbengebläse)
   const RUN = [true, false];
   for (let i = 0; i < 2; i++) {
-    const z = Z(i ? 2.2 : -2.2), f = new THREE.Group(), id = `gv_v${i + 1}`;
-    box(f, 3.4, 0.14, 1.9, M.steelDark, X(0.6), 0.15, z + 0.35);
+    const z = Z(i ? 2.2 : -2.2), f = new THREE.Group(), id = `gv_v${i + 1}`, s = i ? -1 : 1;
+    box(f, 3.4, 0.14, 1.9, M.steelDark, X(0.6), 0.15, z + s * 0.35);
     box(f, 0.75, 0.7, 0.62, blw, X(1.4), 0.3, z);                                                // Gebläseblock
     pipe(f, [X(1.4), 1.0, z], [X(1.4), 1.1, z], 0.12, blw);
     cyl(f, 0.26, 0.26, 0.5, stl, X(1.4), 1.1, z, 18);                                            // Saugschalldämpfer
@@ -688,25 +864,24 @@ const spinGV = [];
     cyl(f, 0.3, 0.3, 1.3, stl, X(-1.6), 0.3, z, 18);                                             // Druckschalldämpfer
     pipe(f, [X(-1.6), 1.6, z], [X(-1.6), yD, z], 0.1); pipe(f, [X(-1.6), yD, z], [xDS, yD, z], 0.1);
     valve(f, X(-2.4), yD, z);
-    pipe(f, [X(0), 0.7, z + 0.62], [X(0), 0.7, z + 1.15], 0.25, mot);                            // Motor
-    pipe(f, [X(0), 0.7, z + 1.15], [X(0), 0.7, z + 1.25], 0.23, M.steelDark);
-    box(f, 0.5, 0.2, 0.5, mot, X(0), 0.29, z + 0.88, 0, false);
+    pipe(f, [X(0), 0.7, z + s * 0.62], [X(0), 0.7, z + s * 1.15], 0.25, mot);                    // Motor
+    pipe(f, [X(0), 0.7, z + s * 1.15], [X(0), 0.7, z + s * 1.25], 0.23, M.steelDark);
+    box(f, 0.5, 0.2, 0.5, mot, X(0), 0.29, z + s * 0.88, 0, false);
     const gdM = new THREE.MeshStandardMaterial({ color: 0xe0a020, transparent: true, opacity: 0.4, roughness: 0.6 });
-    const gd = new THREE.Mesh(boxGeo, gdM); gd.scale.set(1.95, 0.75, 0.14); gd.position.set(X(0.7), 0.68, z + 0.5); f.add(gd); // Riemenschutz
-    const pul2 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.05, 14).rotateX(Math.PI / 2), M.steel); pul2.position.set(X(0), 0.7, z + 0.52); f.add(pul2);
-    const pul = new THREE.Group(); pul.position.set(X(1.4), 0.65, z + 0.42); f.add(pul);
+    const gd = new THREE.Mesh(boxGeo, gdM); gd.scale.set(1.95, 0.75, 0.14); gd.position.set(X(0.7), 0.68, z + s * 0.5); f.add(gd); INT.guard[i] = gd; // Riemenschutz
+    const pul2 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.05, 14).rotateX(Math.PI / 2), M.steel); pul2.position.set(X(0), 0.7, z + s * 0.52); f.add(pul2);
+    const pul = new THREE.Group(); pul.position.set(X(1.4), 0.65, z + s * 0.42); f.add(pul); INT.pul[i] = pul;
     const pm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.05, 16).rotateX(Math.PI / 2), M.steel); pul.add(pm);
     const pk = new THREE.Mesh(boxGeo, std(0xe6c229)); pk.scale.set(0.05, 0.4, 0.06); pul.add(pk);
-    if (RUN[i]) spinGV.push([pul, 'z']);
     const pz = z + (i ? 0.95 : -0.95);
     box(f, 0.08, 1.1, 0.08, M.steelDark, X(2.7), 0.15, pz, 0, false);
     box(f, 0.26, 0.34, 0.16, std(0xd9c27a), X(2.7), 1.2, pz, 0, false);
-    const lmp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), RUN[i] ? lampOn : lampOff); lmp.position.set(X(2.7), 1.48, pz + 0.1); f.add(lmp);
+    const lmp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), RUN[i] ? lampOn : lampOff); lmp.position.set(X(2.7), 1.48, pz + s * 0.1); f.add(lmp); INT.lamp[i] = lmp;
     subReg(id, f, `V${i + 1}`, new THREE.Vector3(X(2.7), 2.0, pz), { name: `Gasverdichter V${i + 1} (Drehkolbengebläse)`, kks: `V${i + 1}`,
       text: 'Zwei gegenläufige Drehkolben fördern das Gas ohne innere Verdichtung von der Saug- zur Druckseite. Saugseitig entsteht der Unterdruck im Leitungsnetz, druckseitig der Vordruck für BHKW und Fackel. Ex-geschützte Ausführung mit Keilriemenantrieb, Saug- und Druckschalldämpfer und Rückschlagklappe.',
-      rows: [['Bauart', 'Drehkolbengebläse (Roots-Prinzip), ex-geschützt'], ['Antrieb', 'Elektromotor über Keilriemen, drehzahlgeregelt'], ['Saugseite', 'Unterdruck im Gasnetz (typ. einige 10 mbar)'], ['Druckseite', 'Vordruck für BHKW / Fackel (typ. 100–200 mbar)'], ['Im Bild', RUN[i] ? 'in Betrieb (Beispielzustand)' : 'Reserve (Beispielzustand)']] });
+      rows: [['Bauart', 'Drehkolbengebläse (Roots-Prinzip), ex-geschützt'], ['Antrieb', 'Elektromotor über Keilriemen, drehzahlgeregelt'], ['Saugseite', 'Unterdruck im Gasnetz (typ. einige 10 mbar)'], ['Druckseite', 'Vordruck für BHKW / Fackel (typ. 100–200 mbar)']] });
     if (i === 1) INT.tags = [['Saugschalldämpfer', X(1.4), 1.95, z], ['Rückschlagklappe', X(0.4), 0.95, z - 0.2], ['Druckschalldämpfer', X(-1.6), 1.85, z],
-      ['Motor', X(-0.1), 1.05, z + 1.0], ['Keilriemenantrieb', X(0.95), 1.25, z + 0.55]].map(([t2, x, y, zz]) => ({ t: t2, v: new THREE.Vector3(x, y, zz) }));
+      ['Motor', X(-0.1), 1.05, z - 1.0], ['Keilriemenantrieb', X(0.95), 1.25, z - 0.55]].map(([t2, x, y, zz]) => ({ t: t2, v: new THREE.Vector3(x, y, zz) }));
   }
   // Gasanalyse
   {
@@ -733,6 +908,11 @@ const spinGV = [];
     INT.tags.push({ t: 'Gaswarnsensor', v: new THREE.Vector3(X(-5.5), 3.65, Z(-D / 2 + 0.2)) }, { t: 'Lüfter', v: new THREE.Vector3(X(W / 2 - 0.2), 3.4, Z(2.4)) });
   }
 }
+
+// Begehbare Gasverdichterstation mit Vor-Ort-Instrumenten und Simulation → js/gas-szene.js
+const fui = initAnlageUI();
+const gvs = buildGasstation(scene, { box, M, std }, INT, { toast: (m) => fui.toast(m) });
+initBestellung(fui);
 
 // ------------------------------------------------------------------ Fahrzeuge
 function makeTruck(colBody, tipper) {
@@ -837,7 +1017,7 @@ for (const id of INT.subs) { const el = document.createElement('div'); el.classN
 for (const tg of INT.tags) { tg.el = document.createElement('div'); tg.el.className = 'tag'; tg.el.textContent = tg.t; tg.el.style.display = 'none'; labelBox.appendChild(tg.el); }
 let interiorOn = false;
 function setInterior(on) {
-  interiorOn = on; INT.eq.visible = on; INT.roof.visible = !on;
+  interiorOn = on; INT.roof.visible = !on;
   for (const [w, h] of INT.low) { const H2 = on ? 0.9 : h; w.scale.y = H2; w.position.y = H2 / 2; }
   for (const id of TOUR) comps[id].el.style.display = on ? 'none' : '';
   for (const id of INT.subs) comps[id].el.style.display = on ? '' : 'none';
@@ -862,9 +1042,11 @@ function select(id, doFly, keepInterior) {
   infoBody.innerHTML = `<h2>${c.name}</h2><div class="kks">${c.kks}</div><p>${c.text}</p><table>${c.rows.map(r => `<tr><td class="k">${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>` +
     (c.link ? `<p style="margin-top:8px"><a href="${c.link[0]}" target="_blank" rel="noopener">${c.link[1]}</a></p>` : '') +
     (c.note ? '<div class="note">* Abmessung für die 3D-Ansicht angenommen (in der Simulation nicht festgelegt).</div>' : '') +
+    (c.walk ? `<p style="margin:10px 0 0"><button class="btn" id="bWalkHere">🚶 Station begehen</button></p>` : '') +
     (c.interior ? `<p style="margin:10px 0 0"><button class="btn" id="bInt">${interiorOn ? '⬆ Außenansicht' : '🔍 Innenansicht öffnen'}</button></p>` : '') +
     (c.sub ? '<p style="margin:10px 0 0"><button class="btn" id="bIntBack">‹ Station</button> <button class="btn" id="bIntOut">⬆ Außenansicht</button></p>' : '');
   info.style.display = 'block'; layout();
+  document.getElementById('bWalkHere')?.addEventListener('click', () => { deselect(); stopAuto(); setInterior(false); walk.enter(c.walk); });
   document.getElementById('bInt')?.addEventListener('click', () => { if (interiorOn) { setInterior(false); select('gv', true); } else openInterior(); });
   document.getElementById('bIntBack')?.addEventListener('click', () => select('gv', false, true));
   document.getElementById('bIntOut')?.addEventListener('click', () => { setInterior(false); select('gv', true); });
@@ -892,7 +1074,7 @@ document.getElementById('bAuto').onclick = e => {
   select(TOUR[(tourIdx + 1) % TOUR.length], true);
   auto = setInterval(() => select(TOUR[(tourIdx + 1) % TOUR.length], true), 7000);
 };
-document.getElementById('bHome').onclick = () => { stopAuto(); setInterior(false); deselect(); tourIdx = -1; tname.textContent = 'Rundgang starten ›'; HOME(); };
+document.getElementById('bHome').onclick = () => { walk.exit(); stopAuto(); setInterior(false); deselect(); tourIdx = -1; tname.textContent = 'Rundgang starten ›'; HOME(); };
 document.getElementById('close').onclick = deselect;
 let showLbl = true;
 document.getElementById('bLbl').onclick = e => { showLbl = !showLbl; e.target.classList.toggle('on', showLbl); labelBox.style.display = showLbl ? '' : 'none'; };
@@ -903,11 +1085,29 @@ controls.addEventListener('start', () => { fly = null; stopAuto(); });
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
 canvas.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
 canvas.addEventListener('pointerup', e => {
+  if (walk.active) return;
   if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) return;
   ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
   const h = (interiorOn && ray.intersectObjects(INT.pick, false)[0]) || ray.intersectObjects(pickables, false)[0];
   if (h) select(h.object.userData.comp, false, interiorOn && h.object.userData.comp === 'gv'); else deselect();
 });
+// ------------------------------------------------------------------ Begehung (Ich-Perspektive) → js/begehung.js
+const GV_ORT = { x0: 140, x1: 196, z0: -60, z1: -16 };          // begehbarer Bereich rund um Verdichterstation, Fackel und BHKW
+const walk = createWalk({ scene, camera, canvas, controls, fence: GV_ORT, getInstMeshes: () => instMeshes, insts,
+  onInspect: (id, msg) => fui.openDetail(id, msg),
+  onPickComp: () => null,
+  isBlocked: () => fui.isBlocked() });
+const bWalk = document.getElementById('bWalk');
+const walkBtn = (on) => { bWalk.classList.toggle('on', on); bWalk.innerHTML = on ? '⬆<span class="t"> Luftbild</span>' : '🚶<span class="t"> Begehen</span>'; };
+bWalk.onclick = () => {
+  if (walk.active) { walk.exit(); return; }
+  stopAuto(); setInterior(false); deselect(); walk.enter('verdichter');
+};
+const _enter = walk.enter, _exit = walk.exit;
+walk.enter = (k) => { stopAuto(); setInterior(false); deselect(); vehicles.forEach(v => v.obj.visible = false); _enter(k); walkBtn(true); };
+walk.exit = () => { _exit(); walkBtn(false); vehicles.forEach(v => v.obj.visible = traffic); layout(); };
+initMissionen({ ui: fui, walk, setExam: (on) => document.body.classList.toggle('exam', on) });
+
 function layout() {
   const bh = document.getElementById('bottom').offsetHeight;
   info.style.bottom = (bh + 8) + 'px';
@@ -921,7 +1121,8 @@ camera.position.copy(homePos()); controls.target.copy(homeTgt());
 const clock = new THREE.Clock(), pv = new THREE.Vector3(), tmp = { pos: new THREE.Vector3(), dir: new THREE.Vector3() };
 let elapsed = 0;
 function tick() {
-  const dt = Math.min(clock.getDelta(), 0.1); elapsed += dt;
+  const raw = clock.getDelta(), dt = Math.min(raw, 0.1); elapsed += dt;
+  simTick(raw); gvs.update(dt); updateInstruments(dt, camera, fui.detail); fui.update(dt);
   for (const sp of spinners) sp.obj.rotation.y += sp.w * dt;
   for (const t of turners) { t.s = (t.s ?? 0) + t.v * dt; const L = t.b - t.a, ph = t.s % (2 * L); t.obj.position.x = t.a + (ph < L ? ph : 2 * L - ph); }
   for (const c of comp) {
@@ -944,11 +1145,12 @@ function tick() {
   }
   for (const m of flowMats) m.uniforms.uT.value = elapsed;
   if (marker.visible) marker.material.opacity = 0.55 + 0.45 * Math.sin(elapsed * 4);
-  if (fly) {
+  if (walk.active) walk.update(dt);
+  else if (fly) {
     const t = Math.min(1, (performance.now() - fly.t0) / fly.dur), e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     controls.target.lerpVectors(fly.ft, fly.tt, e); camera.position.lerpVectors(fly.fp, fly.tp, e); if (t >= 1) fly = null;
   }
-  controls.update();
+  if (!walk.active) controls.update();
   renderer.render(scene, camera);
   for (const [o2, ax] of spinGV) o2.rotation[ax] += 10 * dt;
   const near = camera.position.distanceTo(controls.target) < 24;
@@ -959,12 +1161,13 @@ function tick() {
   }
   if (showLbl) for (const id of (interiorOn ? INT.subs : TOUR)) {
     const c = comps[id]; pv.copy(c.anchor).project(camera);
+    if (walk.active && c.center.distanceTo(camera.position) > 45) { c.el.style.display = 'none'; continue; }
     if (pv.z > 1 || Math.abs(pv.x) > 1.05 || Math.abs(pv.y) > 1.05) { c.el.style.display = 'none'; continue; }
     c.el.style.display = ''; c.el.style.transform = `translate(${(pv.x * .5 + .5) * innerWidth}px,${(-pv.y * .5 + .5) * innerHeight}px) translate(-50%,-100%)`;
   }
   requestAnimationFrame(tick);
 }
-window.__ka3d = { THREE, scene, renderer, camera, controls };
+window.__ka3d = { THREE, scene, renderer, camera, controls, walk, sim, ui: fui };
 document.getElementById('load').remove();
 tick();
 </script>
