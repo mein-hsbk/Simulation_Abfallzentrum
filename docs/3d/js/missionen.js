@@ -85,7 +85,7 @@ function chkSymptom(k) {
     ['Gasanalyse (O₂) kontrolliert', () => hat(/angesehen: QI 801/), 'Steigender Sauerstoff zeigt, dass irgendwo Luft angesaugt wird – z. B. über einen leeren Siphon.'],
     ['Kondensatabscheider und Siphon begutachtet', () => hat(/angesehen: K1/), 'Fehlendes Sperrwasser im Siphon oder ein überfüllter Abscheider verursachen ebenfalls unruhigen Unterdruck.'],
     ['Hauptsammler außerhalb der Station begutachtet', () => hat(/angesehen: Hauptsammler/), 'Sackt eine Leitung ab, entsteht ein Wassersack: Das Gas drückt sich stoßweise durch das Kondensat – typisch sind gleichmäßige, langsame Schwankungen.'],
-    ['V1 abgehört bzw. Riementrieb geprüft', () => hat(/V1 abgehört/) || hat(/V1 Riementrieb begutachtet/), 'Quietschen am Riementrieb oder Klappern an der Rückschlagklappe grenzen die Ursache am Verdichter ein.'],
+    ['V1 abgehört bzw. Riementrieb oder Rückschlagklappe geprüft', () => hat(/V1 abgehört/) || hat(/V1 Riementrieb begutachtet/) || hat(/V1 Rückschlagklappe abgehört/), 'Quietschen am Riementrieb oder Klappern an der Rückschlagklappe grenzen die Ursache am Verdichter ein.'],
   ];
   if (k === 'G3') return [
     ['V1 abgehört', () => hat(/V1 abgehört/), 'Das Geräuschbild (mahlend, metallisch-hart, gepresst) unterscheidet Lager-, Getriebe- und Gegendruckprobleme.'],

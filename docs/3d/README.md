@@ -24,6 +24,16 @@ Störungsspeicher und Motorschutz-Einstellung, K1 (ablassen, spülen, Siphon auf
 Gaswarnanlage, Ex-Zonenplan, Zugang mit persönlichem Gaswarngerät, Hauptsammler (bei Wassersack sichtbar abgesackt;
 Gefälle prüfen, abhören, provisorisch unterbauen), Fackel- und BHKW-Bedienfeld.
 
+## Orientierung, Gasbrunnen, Querschnitt
+
+- Aufstellungsplan am Eingang innen (Button „🗺 Aufstellungsplan“): Grundriss mit nummerierten Armaturen/Messstellen und eigenem Standort; im Prüfungsmodus ausgeblendet.
+- Persönliches Gaswarngerät: Ladestation neben der Tür oder Button „📟 Gaswarngerät“; Anzeige (CH₄ % UEG, O₂, H₂S, CO) oben rechts.
+- Begehung „Gasbrunnen GB 1.03“ (erste Berme, Gelände folgt der Böschung) und „Gassammelstation GS 1“: Messung am Brunnenkopf
+  und Messstutzen, Regelarmatur der Leitung 1.03 einstellbar (Über-/Untersaugung, `brunnenWerte` in `gas-modell.js`, nur Anzeige).
+- Querschnitt (`js/querschnitt.js`, aus Brunnenkopf, GS 1 oder Infokarte „Deponiegaserfassung“): maßstäblicher Schnitt Böschung
+  mit Oberflächen- und Basisabdichtung, Brunnenausbau, Anschlussleitung mit Gefälle, GS 1, Kondensatschacht, Ringleitung;
+  Detail A Brunnendurchführung; Gas- und Kondensatweg animiert; Umschalter „Setzung der Berme (Wassersack)“; Live-Unterdrücke.
+
 ## Missionen (`js/missionen.js`)
 
 Störungskarten G1 Gasmenge zu gering · G2 Druckschwankungen · G3 Verdichter laut/heiß · G4 Motorschutz ausgelöst,

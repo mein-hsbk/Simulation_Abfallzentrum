@@ -102,7 +102,7 @@ export function createGas(karte = null, ursache = null, falle = false) {
   const G = { t: 8 * 3600, karte, ursache, ursache0: ursache, falle, g: [geblaese(1), geblaese(2)], sp: PG.SOLL,
     pn: 35, pField: 30, qNetz: 0, q: 0, ch4: PG.CH4, o2: 0.4, airK1: 0, airAblass: 0, pdi: 3, k1: 30, siphon: 100, k1gespuelt: false,
     ws: { aktiv: ursache === 'wassersack', prov: false, rest: ursache === 'wassersack' ? 1 : 0 }, pnMin: 99, pnMax: 0, puls: 0, pulsWin: [],
-    qBhkw: 0, qFackel: 0, pel: 0, fackel: false, bhkw: 'betrieb', vGas: 0, vDiffus: 0, eKwh: 0, stillT: 0, gaswarn: false, gw: 0,
+    qBhkw: 0, qFackel: 0, pel: 0, fackel: false, bhkw: 'betrieb', vGas: 0, vDiffus: 0, eKwh: 0, stillT: 0, gaswarn: false, gw: 0, br: { ventil: 45 },
     alarme: {}, hist: [], histNext: 0, historie: [], bestellungen: [], warnT: {} };
   const V1 = G.g[0], V2 = G.g[1];
   if (ursache === 'saugklappe') V1.hs = 9;
@@ -344,7 +344,7 @@ export function k1Ablassen(G, log) {
 export function k1Spuelen(G, log) { log('K1 Siphon über den Spülanschluss gespült'); if (G.ursache === 'kondensat') { G.k1gespuelt = true; return 'Siphon war verstopft (Schlamm) – gespült, Kondensat läuft wieder ab.'; } return 'Siphon frei.'; }
 export function siphonAuffuellen(G, log) { log(`K1 Siphon mit Wasser aufgefüllt (vorher ${G.siphon < 30 ? 'leer' : 'gefüllt'})`); const war = G.siphon < 30; G.siphon = 100; return war ? 'Siphon war leer – aufgefüllt, die Luftansaugung ist beendet.' : 'Siphon war gefüllt.'; }
 export function wsUnterbauen(G, log) { if (!G.ws.aktiv) return 'Die Leitung liegt auf allen Auflagern auf.'; if (G.ws.prov) return 'Bereits unterbaut.'; G.ws.prov = true; log('Hauptsammler an der abgesackten Stelle provisorisch unterbaut (angehoben)'); return 'Leitung angehoben und unterbaut – das Kondensat läuft jetzt zum Abscheider ab. Dauerhafte Instandsetzung erforderlich.'; }
-export function gaswarngeraet(G, log) { if (G.gaswarn) return 'Das Gaswarngerät ist bereits eingeschaltet.'; G.gaswarn = true; log('Persönliches Gaswarngerät eingeschaltet und mitgeführt (Selbsttest i. O.)'); return 'Gaswarngerät eingeschaltet: CH₄ 0 % UEG, O₂ 20,9 %, H₂S 0 ppm.'; }
+export function gaswarngeraet(G, log) { if (G.gaswarn) return 'Das Gaswarngerät ist bereits eingeschaltet – Anzeige oben rechts.'; G.gaswarn = true; log('Persönliches Gaswarngerät eingeschaltet und mitgeführt (Selbsttest i. O.)'); return 'Gaswarngerät eingeschaltet und am Kragen befestigt: CH₄ 0 % UEG, O₂ 20,9 %, H₂S 0 ppm. Die Anzeige bleibt oben rechts eingeblendet.'; }
 
 // Messungen und Sinneswahrnehmungen (Ergebnis ins Protokoll)
 export function messung(G, i, art, log) {
@@ -393,4 +393,18 @@ export function messung(G, i, art, log) {
     log(`${n} Riementrieb begutachtet: ${s}; Eindrücktiefe ${e} mm (Soll 10–15 mm)`, 'messung');
     return `${s}. Eindrücktiefe ${e} mm (Soll 10–15 mm).`;
   }
+}
+
+// ------------------------------------------------------------------ Gasbrunnen GB 1.03 (Anschauung außerhalb der Missionen)
+// Nur Anzeige: Der einzelne Brunnen wirkt nicht auf das Gesamtmodell zurück. Unterdruck an der Sammelstation folgt PI 801.
+export const BRUNNEN = { name: 'GB 1.03', gs: 'GS 1', leitung: '1.03', tiefe: 10.5, filter: '6,0 m', qPot: 7.5, pOpt: 16 };
+export function brunnenWerte(G) {
+  const f = Math.max(0, Math.min(1, G.br.ventil / 100)), pGs = Math.max(0, G.pn * 0.92), pB = pGs * f * f / (f * f + 0.2);
+  const luft = Math.max(0, pB - BRUNNEN.pOpt) * 0.022, o2 = 0.2 + 20.9 * luft / (1 + luft);
+  const q = BRUNNEN.qPot * (1 - Math.exp(-pB / 6)) * (1 + luft), ch4 = (PG.CH4 + 4) * (1 - (o2 - 0.2) / 20.9) - (o2 > 3 ? 2 : 0);
+  return { pGs, pB, q, o2, ch4, co2: Math.max(0, 97 - ch4 * 1.04 - o2 * 4.6), t: 38 + 4 * f, aus: pB < 3 && G.pn > 10 };
+}
+export function setBrunnenVentil(G, v, log) {
+  const a = Math.round(G.br.ventil); G.br.ventil = Math.max(0, Math.min(100, v));
+  log(`GS 1 Regelarmatur Leitung 1.03 ${a} → ${Math.round(G.br.ventil)} % offen`);
 }
