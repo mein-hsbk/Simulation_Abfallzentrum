@@ -9,9 +9,11 @@ export const STATIONEN = {
   schaltanlage: { n: "Schaltanlage", p: [169.3, -40.4, 169.6, -43.6] },
   hauptsammler: { n: "Hauptsammler", p: [182.6, -37.6, 181.4, -40] },
   fackel: { n: "Fackel / BHKW", p: [150, -21.5, 150, -28] },
+  gs1: { n: "Gassammelstation GS 1", p: [203.4, -146.4, 206.6, -149.1] },
+  gasbrunnen: { n: "Gasbrunnen GB 1.03", p: [252.2, -185.2, 255, -189] },
 };
 
-export function createWalk({ scene, camera, canvas, controls, fence, areas = [], walls = [], getInstMeshes, insts, onInspect, onPickComp, isBlocked }) {
+export function createWalk({ scene, camera, canvas, controls, fence, areas = [], walls = [], getInstMeshes, insts, onInspect, onPickComp, isBlocked, ground = () => 0 }) {
   const $ = (id) => document.getElementById(id);
   const P = { x: 0, z: 0, yaw: 0, pitch: 0 };
   const keys = {};
@@ -56,7 +58,7 @@ export function createWalk({ scene, camera, canvas, controls, fence, areas = [],
 
   function goTo(key) {
     const [x, z, tx, tz] = STATIONEN[key].p;
-    Object.assign(P, { x, z, yaw: Math.atan2(tx - x, -(tz - z)), pitch: -0.22 });
+    Object.assign(P, { x, z, y: ground(x, z), yaw: Math.atan2(tx - x, -(tz - z)), pitch: -0.22 });
     for (const b of document.querySelectorAll('#walkSt .btn')) b.classList.toggle('on', b.dataset.k === key);
   }
 
@@ -144,7 +146,8 @@ export function createWalk({ scene, camera, canvas, controls, fence, areas = [],
         P.x += (fz * sy + fx * cy) * v; P.z += (-fz * cy + fx * sy) * v; collide();
       }
     }
-    camera.position.set(P.x, 1.7, P.z); camera.rotation.set(P.pitch, -P.yaw, 0);
+    P.y = P.y === undefined ? ground(P.x, P.z) : P.y + (ground(P.x, P.z) - P.y) * Math.min(1, dt * 10);
+    camera.position.set(P.x, P.y + 1.7, P.z); camera.rotation.set(P.pitch, -P.yaw, 0);
     camera.getWorldDirection(fwd);
     let best = null, bestA = 0.6;
     for (const id in insts) {

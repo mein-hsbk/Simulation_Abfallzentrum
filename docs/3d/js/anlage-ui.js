@@ -21,7 +21,7 @@ export function initAnlageUI() {
     const it = insts[id]; detail.id = id;
     $('dTitle').textContent = it.tag; $('dName').textContent = it.name;
     $('dInfo').textContent = it.info; $('dInfo').style.display = ui.erklaer ? '' : 'none';
-    dcv.width = 512; dcv.height = Math.round(512 * (it.detail ? 0.75 : (it.aspect || 1)));
+    const dw = it.detailW || 512; dcv.width = dw; dcv.height = Math.round(dw * (it.detailAspect || (it.detail ? 0.75 : (it.aspect || 1))));
     (it.detail || it.draw)(detail.ctx, dcv.width, dcv.height);
     renderActions(); $('detail').style.display = 'flex';
     if (!lastInspect[id] || performance.now() - lastInspect[id] > 30000) logA(`angesehen: ${it.tag} (${it.name})`, 'blick');

@@ -3,7 +3,8 @@
 // (optional) abgesacktem Auflager, Fackel und BHKW. Geometrie der Verdichter: index.html (INT).
 import * as THREE from 'three';
 import { PG, GEB, MOT, RIEMEN, EXZONEN, vName, setWahl, setRep, setSchloss, einschaltversuch, setKlappe, setEnt, quittieren, setMotorschutz,
-  riemenschutz, nachspannen, oelNachfuellen, k1Ablassen, k1Spuelen, siphonAuffuellen, wsUnterbauen, gaswarngeraet, messung } from './gas-modell.js';
+  riemenschutz, nachspannen, oelNachfuellen, k1Ablassen, k1Spuelen, siphonAuffuellen, wsUnterbauen, gaswarngeraet, messung, BRUNNEN, brunnenWerte, setBrunnenVentil } from './gas-modell.js';
+import { insts } from './instrumente.js';
 import { sim, logA } from './anlage-sim.js';
 import { f1, f0, noise, gauge, lcd, lamp, plate, senses, makeInstFactory } from './instrumente.js';
 
@@ -49,7 +50,7 @@ export function buildGasstation(scene, h, INT, hooks = {}) {
       ctx.font = `${W * 0.06}px Arial`; ctx.fillText('Zutritt nur mit Gaswarngerät', W / 2, Hc * 0.82);
     },
     actions: () => [{ label: G().gaswarn ? 'Gaswarngerät ist eingeschaltet' : 'Persönliches Gaswarngerät einschalten und mitnehmen', fn: () => toast(gaswarngeraet(G(), logA)) }] });
-  makeInst('gv_ex', { name: 'Ex-Zonenplan Gasverdichterstation (Auszug Explosionsschutzdokument)', tag: 'Ex-Zonenplan', pos: [X(-6.8), 1.6, cz - 3.72], size: 0.55, aspect: 0.75,
+  makeInst('gv_ex', { name: 'Ex-Zonenplan Gasverdichterstation (Auszug Explosionsschutzdokument)', tag: 'Ex-Zonenplan', pos: [X(-3.1), 1.6, cz - 4.07], rotY: Math.PI, size: 0.55, aspect: 0.75,
     info: 'Auszug aus dem Explosionsschutzdokument: Einteilung in Zonen und Anforderungen an Betriebsmittel. Ersatzteile für elektrische und nicht elektrische Geräte in Zone 1 müssen mindestens der Gerätekategorie 2G entsprechen.',
     draw: (ctx, W, Hc) => {
       ctx.fillStyle = '#fdfdfb'; ctx.fillRect(0, 0, W, Hc); ctx.fillStyle = '#f5c400'; ctx.fillRect(0, 0, W, Hc * 0.16);
@@ -65,10 +66,72 @@ export function buildGasstation(scene, h, INT, hooks = {}) {
       const z = []; for (const t of EXZONEN) { const w = t.split(' '); let l = ''; for (const x of w) { if ((l + ' ' + x).length > 58) { z.push(l); l = x; } else l = l ? l + ' ' + x : x; } z.push(l); z.push(''); }
       z.forEach((t, k) => ctx.fillText(t, W * 0.05, Hc * (0.16 + k * 0.06)));
     } });
+  // Ladestation persönliche Gaswarngeräte neben dem Eingang
+  box(scene, 0.5, 0.6, 0.18, std(0x34495e), X(-6.4), 1.0, cz - 4.1, 0, false);
+  makeInst('gv_lade', { name: 'Ladestation persönliche Gaswarngeräte', tag: 'Gaswarngeräte', pos: [X(-6.4), 1.3, cz - 4.2], rotY: Math.PI, size: 0.46, aspect: 1.2, res: 256,
+    info: 'Ladestation mit tragbaren Mehrgas-Warngeräten (CH₄ in % UEG, O₂, H₂S, CO). Vor dem Betreten des Ex-Bereichs ein Gerät entnehmen, einschalten (Selbsttest) und am Kragen tragen. Alarm 1 bei 10 % UEG, Alarm 2 bei 20 % UEG: Bereich sofort verlassen.',
+    draw: (ctx, W, Hc) => {
+      ctx.fillStyle = '#2c3e50'; ctx.fillRect(0, 0, W, Hc); ctx.fillStyle = '#ecf0f1'; ctx.font = `bold ${W * 0.07}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('Gaswarngeräte', W / 2, Hc * 0.04);
+      for (let k = 0; k < 3; k++) {
+        const x = W * (0.12 + k * 0.28), y = Hc * 0.2, w = W * 0.2, h = Hc * 0.62, weg = k === 0 && G().gaswarn;
+        ctx.fillStyle = '#1b2631'; ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
+        if (weg) continue;
+        ctx.fillStyle = '#f39c12'; ctx.fillRect(x, y, w, h); ctx.fillStyle = '#111'; ctx.fillRect(x + w * 0.15, y + h * 0.12, w * 0.7, h * 0.3);
+        ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.arc(x + w / 2, y + h * 0.7, w * 0.1, 0, 7); ctx.fill();
+      }
+      ctx.fillStyle = '#ecf0f1'; ctx.font = `${W * 0.055}px Arial`; ctx.fillText('Vor Betreten einschalten!', W / 2, Hc * 0.88);
+    },
+    actions: () => [{ label: G().gaswarn ? 'Gaswarngerät ist eingeschaltet' : 'Gaswarngerät entnehmen, einschalten und anlegen', fn: () => toast(gaswarngeraet(G(), logA)) }] });
+
+  // Aufstellungsplan am Eingang innen (Grundriss mit Positionsnummern, „Sie sind hier“)
+  const PLAN = [['gv_pi801'], ['gv_k1'], ['gv_pdi'], ['gv_hs0'], ['gv_pis0'], ['gv_v0'], ['gv_rk0'], ['gv_pid0'], ['gv_ti0'], ['gv_hd0'], ['gv_ent0'], ['gv_rs0'], ['gv_oel0'], ['gv_mot0'], ['gv_sk0'],
+    ['gv_hs1'], ['gv_pis1'], ['gv_v1'], ['gv_rk1'], ['gv_pid1'], ['gv_ti1'], ['gv_hd1'], ['gv_ent1'], ['gv_rs1'], ['gv_oel1'], ['gv_mot1'], ['gv_sk1'], ['gv_st'], ['gv_ga'], ['gv_gw']].map(([id]) => id);
+  makeInst('gv_plan', { name: 'Aufstellungsplan Gasverdichterstation', tag: 'Aufstellungsplan', pos: [X(-4.05), 1.55, cz - 3.72], size: 0.6, aspect: 0.62, res: 256, detailAspect: 1.2, detailW: 1024,
+    info: 'Grundriss der Station mit den Positionen der Armaturen und Messstellen (Kennzeichnung wie im R&I-Fließbild). Der rote Punkt zeigt den eigenen Standort.',
+    draw: (ctx, W, Hc) => planZeichnen(ctx, W, Hc, false),
+    detail: (ctx, W, Hc) => planZeichnen(ctx, W, Hc, true) });
+  function planZeichnen(ctx, W, Hc, gross) {
+    ctx.fillStyle = '#fdfdfb'; ctx.fillRect(0, 0, W, Hc);
+    const ph = gross ? Hc * 0.48 : Hc * 0.86, m = W * 0.04, sc = Math.min((W - 2 * m) / 18, (ph - m * 2.6) / 8), ox = (W - 18 * sc) / 2, oy = m * 2.6;
+    const px = (x) => ox + (x - (cx - 9)) * sc, pz = (z) => oy + (z - (cz - 4)) * sc;
+    ctx.fillStyle = '#111'; ctx.font = `bold ${W * 0.035}px Arial`; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('Aufstellungsplan Gasverdichterstation · Norden oben', m, m * 0.4);
+    ctx.strokeStyle = '#222'; ctx.lineWidth = Math.max(2, sc * 0.2); ctx.strokeRect(px(cx - 9), pz(cz - 4), 18 * sc, 8 * sc);
+    ctx.fillStyle = '#fdfdfb'; ctx.fillRect(px(X(-5.5)), pz(cz - 4) - sc * 0.3, sc * 1.1, sc * 0.6);                       // Tür
+    ctx.fillStyle = '#555'; ctx.font = `${W * 0.022}px Arial`; ctx.textAlign = 'center'; ctx.fillText('Eingang ↓', px(X(-5)), pz(cz - 4) - sc * 0.75);
+    ctx.fillStyle = '#dfe6e9'; ctx.strokeStyle = '#636e72'; ctx.lineWidth = 1;
+    for (const i of [0, 1]) { const z = cz + (i ? 2.2 : -2.2), s2 = i ? -1 : 1; ctx.fillRect(px(X(-1.1)), pz(Math.min(z - s2 * 0.6, z + s2 * 1.3)), 3.4 * sc, 1.9 * sc); ctx.fillStyle = '#2d3436'; ctx.fillText(vName(i), px(X(0.6)), pz(z + s2 * 0.35) - W * 0.012); ctx.fillStyle = '#dfe6e9'; }
+    ctx.beginPath(); ctx.arc(px(X(6.6)), pz(cz), 0.5 * sc, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillRect(px(X(4.4)), pz(cz - 3.78), 2.5 * sc, 0.45 * sc); ctx.fillRect(px(X(-7)), pz(cz - 3.78), 1 * sc, 0.45 * sc);
+    ctx.strokeStyle = '#e1a100'; ctx.lineWidth = Math.max(2, sc * 0.25); ctx.beginPath(); ctx.moveTo(px(cx + 9), pz(cz)); ctx.lineTo(px(X(7.1)), pz(cz)); ctx.stroke();
+    ctx.fillStyle = '#2d3436'; ctx.textAlign = 'left'; ctx.fillText('Hauptsammler →', px(cx + 9) - sc * 3.4, pz(cz) - W * 0.03);
+    const r = Math.max(W * 0.013, sc * 0.2);
+    // Positionsnummern auseinanderschieben, Hinweislinie zum tatsächlichen Ort
+    const P = PLAN.map((id) => insts[id]).filter(Boolean).map((it) => ({ x0: px(it.pos.x), y0: pz(it.pos.z), x: px(it.pos.x), y: pz(it.pos.z) }));
+    for (let n = 0; n < 120; n++) for (let a = 0; a < P.length; a++) {
+      const A = P[a]; A.x += (A.x0 - A.x) * 0.02; A.y += (A.y0 - A.y) * 0.02;
+      for (let b = a + 1; b < P.length; b++) { const B = P[b], dx = B.x - A.x, dy = B.y - A.y, d = Math.hypot(dx, dy) || 0.01, md = r * 2.25; if (d < md) { const f = (md - d) / d * 0.5; A.x -= dx * f; A.y -= dy * f; B.x += dx * f; B.y += dy * f; } }
+    }
+    P.forEach((p, k) => {
+      ctx.strokeStyle = '#0984e3'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p.x0, p.y0); ctx.lineTo(p.x, p.y); ctx.stroke();
+      ctx.fillStyle = '#0984e3'; ctx.beginPath(); ctx.arc(p.x0, p.y0, r * 0.22, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `bold ${r * 1.1}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(k + 1), p.x, p.y + 1);
+    });
+    const cam = hooks.getCam && hooks.getCam();
+    if (cam && cam.x > cx - 9.5 && cam.x < cx + 9.5 && cam.z > cz - 7 && cam.z < cz + 4.5) { ctx.fillStyle = '#d63031'; ctx.beginPath(); ctx.arc(px(cam.x), pz(Math.max(cz - 4.6, cam.z)), r * 1.2, 0, 7); ctx.fill(); }
+    if (!gross) return;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = '#111'; ctx.font = `${W * 0.021}px Arial`;
+    const y0 = ph + m * 0.3, n = Math.ceil(PLAN.length / 2), lh = (Hc - y0 - m * 1.6) / n, cw = W * 0.45;
+    PLAN.forEach((id, k) => {
+      const it = insts[id]; if (!it) return; const col = k < n ? 0 : 1, row = k % n;
+      let t = `${k + 1}  ${it.tag} – ${it.name.replace(/ \(.*\)$/, '').replace(' Gasverdichterstation', '')}`; while (ctx.measureText(t).width > cw) t = t.slice(0, -2);
+      ctx.fillText(t, m + col * W * 0.48, y0 + row * lh);
+    });
+    ctx.fillStyle = '#d63031'; ctx.fillText('●  Sie sind hier', m, Hc - m * 1.3);
+  }
   makeInst('gv_gw', { name: 'Gaswarnanlage Verdichterraum', tag: 'GWA', pos: [X(-3.2), 1.7, cz - 3.72], size: 0.34, aspect: 0.7,
     info: 'Ortsfeste Gaswarnanlage mit zwei CH₄-Sensoren unter der Decke (Methan ist leichter als Luft). Voralarm 10 % UEG: Zwangslüftung ein. Hauptalarm 20 % UEG: Abschaltung der Verdichter, Alarm in der Leitwarte.',
     draw: (ctx, W, Hc) => { const v = G().gw; lcd(ctx, W, Hc, 'Gaswarnanlage', [`Sensor 1  ${f0(v)} % UEG`, `Sensor 2  ${f0(v * 0.8)} % UEG`, v > 10 ? { t: 'VORALARM', c: '#ff7675' } : 'Normalbetrieb'], { lcdH: 0.6, fs: 0.085 }); } });
-  makeInst('gv_ga', { name: 'Gasanalyse Deponiegas', tag: 'QI 801/802', pos: [X(-6.5), 1.4, cz - 3.31], size: 0.42, aspect: 0.62,
+  makeInst('gv_ga', { name: 'Gasanalyse Deponiegas', tag: 'QI 801/802', pos: [X(-6.5), 1.4, cz - 3.29], size: 0.42, aspect: 0.62,
     info: 'Kontinuierliche Gasanalyse am Drucksammler (Infrarot für CH₄/CO₂, elektrochemisch für O₂). Steigt O₂ über 2,5 Vol-%, wird irgendwo Luft angesaugt – im Netz durch zu hohen Unterdruck oder an einer Undichtheit in der Station.',
     draw: (ctx, W, Hc) => { const g = G(); lcd(ctx, W, Hc, 'Gasanalyse', [`CH4  ${f1(g.ch4 + noise(0.1, 2))} Vol-%`, `CO2  ${f1(Math.max(0, 96 - g.ch4 * 1.08 - g.o2 * 4.7 + noise(0.1, 3)))} Vol-%`, g.o2 > 2.5 ? { t: `O2   ${f1(g.o2)} Vol-%`, c: '#ff7675' } : `O2   ${f1(g.o2)} Vol-%`], { lcdH: 0.6, fs: 0.09 }); } });
 
@@ -109,7 +172,7 @@ export function buildGasstation(scene, h, INT, hooks = {}) {
   [0, 1].forEach((i) => {
     const z0 = cz + (i ? 2.2 : -2.2), s = i ? -1 : 1, ry = i ? Math.PI : 0, nr = vName(i), x = () => G().g[i];
     const pz = z0 - s * 0.95;
-    makeInst(`gv_v${i}`, { name: `Gebläsestufe ${nr} (Drehkolbengebläse)`, tag: nr, pos: [X(1.0), 0.75, z0 + s * 0.33], rotY: ry, size: 0.3, aspect: 0.6, res: 128,
+    makeInst(`gv_v${i}`, { name: `Gebläsestufe ${nr} (Drehkolbengebläse)`, tag: nr, pos: [X(1.8), 1.3, z0 + s * 0.33], rotY: ry, size: 0.3, aspect: 0.6, res: 128,
       info: 'Drehkolbengebläse (Roots-Prinzip): Zwei gegenläufige Kolben fördern ohne innere Verdichtung. Antrieb über Keilriemen, Synchronisationszahnräder und Lager in Ölbad (Schaugläser). Typische Prüfungen: Abhören, Lagertemperatur, Schwingung, Drehzahl der Gebläsewelle (Riemenschlupf).',
       draw: plate(nr, '#d6e4f0'),
       detail: (ctx, W, Hc) => {
@@ -140,7 +203,7 @@ export function buildGasstation(scene, h, INT, hooks = {}) {
         [`Typ        ${GEB.typ}`, `Serien-Nr. ${GEB.snr[i]}   Baujahr ${GEB.bj}`, `Volumen    ${GEB.vol}`, `Druck      ${GEB.dp}`, `ATEX       ${GEB.atex}`, `Schmierung ${GEB.oel}`].forEach((t, k) => ctx.fillText(t, W * 0.06, Hc * (0.22 + k * 0.11)));
         ctx.fillStyle = '#f5c400'; ctx.fillRect(W * 0.8, Hc * 0.06, W * 0.12, W * 0.1); ctx.fillStyle = '#111'; ctx.font = `bold ${W * 0.05}px Arial`; ctx.fillText('Ex', W * 0.815, Hc * 0.08);
       } });
-    makeInst(`gv_oel${i}`, { name: `Ölschauglas Gebläsestufe ${nr}`, tag: `Öl ${nr}`, pos: [X(1.4), 0.4, z0 + s * 0.36], rotY: ry, size: 0.1, round: true, res: 128,
+    makeInst(`gv_oel${i}`, { name: `Ölschauglas Gebläsestufe ${nr}`, tag: `Öl ${nr}`, pos: [X(1.72), 0.42, z0 + s * 0.32], rotY: ry, size: 0.1, round: true, res: 128,
       info: 'Ölstand im Getrieberaum (Synchronisationszahnräder und Lager). Sollstand Schauglasmitte. Zu wenig Öl führt zu erhöhter Lagertemperatur und hartem Laufgeräusch, im Extremfall zum Fressen der Zahnräder.',
       draw: (ctx, W) => { const v = x(); ctx.fillStyle = '#2b2f33'; ctx.fillRect(0, 0, W, W); ctx.fillStyle = '#f5f6fa'; ctx.beginPath(); ctx.arc(W / 2, W / 2, W * 0.42, 0, 7); ctx.fill(); ctx.save(); ctx.beginPath(); ctx.arc(W / 2, W / 2, W * 0.42, 0, 7); ctx.clip(); ctx.fillStyle = '#c69c3f'; ctx.fillRect(0, W * (0.92 - v.oel / 100 * 0.84), W, W); ctx.restore(); ctx.strokeStyle = '#111'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(W * 0.15, W / 2); ctx.lineTo(W * 0.85, W / 2); ctx.stroke(); },
       actions: () => [{ label: 'Öl nachfüllen (Sorte laut Typenschild)', fn: () => toast(oelNachfuellen(G(), i, logA)) }] });
@@ -175,7 +238,15 @@ export function buildGasstation(scene, h, INT, hooks = {}) {
     makeInst(`gv_pid${i}`, { name: `Manometer Druckseite ${nr}`, tag: `PI 8${i + 1}2`, pos: [X(-1.0), 0.95, z0 + s * 0.2], rotY: ry, size: 0.18, round: true,
       info: 'Überdruck nach dem Verdichter (vor Rückschlagklappe und Druckschalldämpfer). Saug- plus Druckseite ergibt die Druckerhöhung; das Sicherheitsventil öffnet bei 350 mbar.',
       draw: (ctx, W) => gauge(ctx, W, { min: 0, max: 400, ticks: 4, unit: 'mbar', tag: `PI 8${i + 1}2`, val: x().pout + (x().run ? noise(2, 7 + i) : 0), red: [330, 400] }) });
-    makeInst(`gv_ti${i}`, { name: `Thermometer Druckgas ${nr}`, tag: `TI 8${i + 1}2`, pos: [X(-2.0), 1.75, z0 + s * 0.35], rotY: ry, size: 0.16, round: true,
+    makeInst(`gv_rk${i}`, { name: `Rückschlagklappe Druckseite ${nr}`, tag: `RK 8${i + 1}4`, pos: [X(0.4), 0.56, z0 + s * 0.165], rotY: ry, size: 0.14, aspect: 0.8, res: 128,
+      info: 'Rückschlagklappe direkt hinter der Gebläsestufe (unter dem Riemenschutz sichtbar). Sie verhindert, dass beim Stillstand oder bei der Reserve Gas von der Druckseite zurückströmt und das Gebläse rückwärts dreht. Eine gebrochene Feder lässt die Klappe flattern: Klappern im Sekundentakt und Druckschwankungen auf der Druckseite.',
+      draw: plate(`RK 8${i + 1}4`, '#bdc3c7'),
+      detail: (ctx, W, Hc) => {
+        const v = x(), flat = i === 0 && G().ursache === 'rsk' && v.run;
+        senses(ctx, W, Hc, `Rückschlagklappe ${nr}`, v.run ? (flat ? ['Lautes Klappern im Sekundentakt.', 'Gehäuse vibriert spürbar,', 'Zeiger PI 8' + (i + 1) + '2 zittert stark.'] : ['Klappe offen, gleichmäßiges Strömungsgeräusch.', 'Kein Klappern.']) : ['Verdichter steht – Klappe geschlossen.', 'Keine Undichtheit hörbar.'], v.run);
+      },
+      actions: () => [{ label: 'Abhören (Stethoskop am Gehäuse)', fn: () => { const v = x(), flat = i === 0 && G().ursache === 'rsk' && v.run; const t = !v.run ? 'Verdichter steht – nichts zu hören.' : flat ? 'Hartes Klappern im Sekundentakt – Klappe flattert.' : 'Gleichmäßiges Strömungsgeräusch.'; logA(`${nr} Rückschlagklappe abgehört: ${t}`, 'messung'); toast(t); } }] });
+    makeInst(`gv_ti${i}`, { name: `Thermometer Druckgas ${nr}`, tag: `TI 8${i + 1}2`, pos: [X(-1.95), 2.3, z0 + s * 0.15], rotY: ry, size: 0.16, round: true,
       info: 'Druckgastemperatur nach dem Verdichter. Steigt mit der Druckerhöhung und mit innerem Rückstrom (Verschleiß). Warnung ab 75 °C, Abschaltung bei 100 °C.',
       draw: (ctx, W) => gauge(ctx, W, { min: 0, max: 120, ticks: 6, unit: '°C', tag: `TI 8${i + 1}2`, val: x().td, red: [100, 120] }) });
     const klappe = (id, seite, tag, name, pos, info) => makeInst(id, { name, tag, pos, rotY: ry, size: 0.18, aspect: 0.7, res: 128, info,
@@ -265,7 +336,50 @@ export function buildGasstation(scene, h, INT, hooks = {}) {
     info: 'Gasmotor mit Generator. Startbedingungen: ausreichende Gasmenge, CH₄ > 40 Vol-%, O₂ < 2,5 Vol-%. Bei schlechter Gasqualität schaltet das BHKW ab, das Gas geht zur Fackel.',
     draw: (ctx, W, Hc) => { const g = G(); lcd(ctx, W, Hc, 'BHKW G 901', [g.bhkw === 'betrieb' ? `Betrieb ${f0(g.pel)} kW` : { t: 'AUS', c: '#ff7675' }, `Gas ${f0(g.qBhkw)} Nm³/h`, `CH4 ${f1(g.ch4)} %  O2 ${f1(g.o2)} %`], { lcdH: 0.6, fs: 0.08 }); } });
 
+  // ---------------------------------------------------------------- Gasbrunnen GB 1.03 und Gassammelstation GS 1 (Anschauung)
+  const BX = 255, BZ = -189, BY = hooks.ground ? hooks.ground(BX, BZ) : 10, br = Math.atan2(252.2 - BX, -185.2 - BZ), nx = Math.sin(br), nz = Math.cos(br);
+  const gb = new THREE.Group(); scene.add(gb);
+  box(gb, 0.06, 1.4, 0.06, M.galv, BX - 0.9 * nz + 0.6 * nx, BY, BZ + 0.9 * nx + 0.6 * nz, 0, false);
+  const st = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.25, 8).rotateZ(Math.PI / 2), M.steel); st.position.set(BX + 0.17 * nx, BY + 1.0, BZ + 0.17 * nz); st.rotation.y = br + Math.PI / 2; gb.add(st);
+  box(gb, 0.12, 0.03, 0.03, std(0xc0392b), BX + 0.3 * nx, BY + 1.06, BZ + 0.3 * nz, 0, false);
+  noCol(gb);
+  const bw = () => brunnenWerte(G());
+  const messeB = (wo) => { const b = bw(); const t = `${wo}: Unterdruck −${f1(wo.startsWith('GS') ? b.pGs : b.pB)} mbar · CH₄ ${f1(b.ch4)} % · CO₂ ${f1(b.co2)} % · O₂ ${f1(b.o2)} % · ${f0(b.t)} °C${wo.startsWith('GS') ? '' : ` · ca. ${f1(b.q)} Nm³/h`}`; logA(`Handmessung ${t}`, 'messung'); toast(t); };
+  makeInst('gb_kopf', { name: `Brunnenkopf ${BRUNNEN.name} mit Mess- und Probenahmestutzen`, tag: BRUNNEN.name, pos: [BX + 0.15 * nx, BY + 1.3, BZ + 0.15 * nz], rotY: br, size: 0.2, aspect: 0.6, res: 128,
+    info: `Vertikaler Gasbrunnen (Tiefe ${f1(BRUNNEN.tiefe)} m, Filterstrecke ${BRUNNEN.filter}) auf der ersten Berme. Am Kopf: Abschluss des Vollrohrs mit Teleskop-Ausgleich für Setzungen, Mess- und Probenahmestutzen mit Kugelhahn, Anschluss der Gasleitung zur Sammelstation ${BRUNNEN.gs}. Eingeregelt wird der Brunnen an der Sammelstation, nicht am Kopf.`,
+    draw: plate(BRUNNEN.name, '#f6e58d'),
+    detail: (ctx, W, Hc) => { const b = bw(); senses(ctx, W, Hc, `Gasbrunnen ${BRUNNEN.name}`, [b.aus ? 'Leichter Deponiegasgeruch am Brunnenkopf.' : 'Kein Gasgeruch, Brunnenkopf dicht.', 'Anschlussleitung verläuft mit Gefälle', `die Böschung hinab zur Sammelstation ${BRUNNEN.gs}.`, 'Ringraum um das Rohr mit Ton abgedichtet.'], true); },
+    actions: () => [
+      { label: 'Am Messstutzen messen (Handmessgerät)', fn: () => messeB(`Brunnen ${BRUNNEN.name}`) },
+      { label: 'Querschnitt durch Deponie und Brunnen ansehen', fn: () => hooks.querschnitt && hooks.querschnitt() },
+      { label: `Zur Gassammelstation ${BRUNNEN.gs} gehen`, fn: () => hooks.goTo && hooks.goTo('gs1') },
+    ] });
+  makeInst('gs_rv', { name: `Regelarmatur Leitung ${BRUNNEN.leitung} in der Gassammelstation ${BRUNNEN.gs}`, tag: `${BRUNNEN.gs} · ${BRUNNEN.leitung}`, pos: [206.4, 1.02, -149.06], rotY: -Math.PI / 2, size: 0.2, aspect: 0.8, res: 128,
+    info: 'Jede Brunnenleitung endet an der Sammelstation mit einer Regelarmatur und einem Messstutzen. Hier wird jeder Brunnen einzeln eingeregelt: so viel Unterdruck wie nötig, damit kein Gas über die Oberfläche entweicht, aber so wenig, dass keine Luft in den Deponiekörper gesaugt wird (O₂ und N₂ im Gas steigen, Methan sinkt; Brandgefahr im Deponiekörper).',
+    draw: (ctx, W, Hc) => { ctx.fillStyle = '#ecf0f1'; ctx.fillRect(0, 0, W, Hc); ctx.fillStyle = '#111'; ctx.font = `bold ${W * 0.15}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(`Ltg. ${BRUNNEN.leitung}`, W / 2, Hc * 0.08); ctx.font = `${W * 0.13}px Arial`; ctx.fillText(`${Math.round(G().br.ventil)} % offen`, W / 2, Hc * 0.5); },
+    detail: (ctx, W, Hc) => { const b = bw(); lcd(ctx, W, Hc, `${BRUNNEN.gs} · Leitung ${BRUNNEN.leitung} (${BRUNNEN.name})`, [`Regelarmatur ${Math.round(G().br.ventil)} % offen`, `p Sammelstation −${f1(b.pGs)} mbar`, `p Brunnen ca. −${f1(b.pB)} mbar`, b.o2 > 2 ? { t: `O2 ${f1(b.o2)} %  übersaugt`, c: '#ff7675' } : b.aus ? { t: 'Brunnen untersaugt', c: '#ffeaa7' } : `CH4 ${f1(b.ch4)} %  O2 ${f1(b.o2)} %`], { lcdH: 0.62, fs: 0.07 }); },
+    actions: () => [
+      { typ: 'zahl', label: 'Stellung Regelarmatur', wert: Math.round(G().br.ventil), min: 0, max: 100, einheit: '% offen', fn: (v) => setBrunnenVentil(G(), v, logA) },
+      { label: 'Am Messstutzen der Leitung messen', fn: () => messeB(`${BRUNNEN.gs} Leitung ${BRUNNEN.leitung}`) },
+      { label: 'Querschnitt durch Deponie und Brunnen ansehen', fn: () => hooks.querschnitt && hooks.querschnitt() },
+    ] });
+
+  // ---------------------------------------------------------------- persönliches Gaswarngerät (Anzeige)
+  const hud = document.getElementById('gwHud'); let hudAlarm = false;
+  function gwAnzeige() {
+    const g = G(), cam = hooks.getCam && hooks.getCam(); if (!hud) return;
+    const zeigen = g.gaswarn && document.body.classList.contains('walking'); hud.style.display = zeigen ? 'block' : 'none'; if (!zeigen || !cam) return;
+    const innen = cam.x > cx - 9 && cam.x < cx + 9 && cam.z > cz - 4 && cam.z < cz + 4;
+    const ch4 = innen ? g.gw * 1.4 : 0, h2s = innen ? g.gw * 0.8 : 0, o2 = 20.9 - (innen ? g.gw * 0.02 : 0);
+    const alarm = ch4 >= 10 || h2s >= 5;
+    hud.className = alarm ? 'alarm' : '';
+    hud.innerHTML = `<b>Gaswarngerät</b><span>CH₄ ${f0(ch4)} % UEG</span><span>O₂ ${f1(o2)} %</span><span>H₂S ${f0(h2s)} ppm</span><span>CO 0 ppm</span>`;
+    if (alarm && !hudAlarm) logA('Persönliches Gaswarngerät: ALARM – Bereich verlassen', 'alarm');
+    hudAlarm = alarm;
+  }
+
   function update(dt) {
+    gwAnzeige();
     const g = G();
     g.g.forEach((v, i) => {
       if (INT.pul && INT.pul[i] && v.run) INT.pul[i].rotation.z += dt * 18 * (1 - v.slip);
